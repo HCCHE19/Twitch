@@ -2,7 +2,7 @@ import { loadConfig, loadIgnoredUsers, loadOverlayLayout } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
-import { reduceEnvelope } from "./presence.js";
+import { createFlareEnvelope, reduceEnvelope } from "./presence.js";
 import { createReceipt, writeReceiptFiles } from "./receipt.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 import { startViewerSampler, viewerSampleEnvelope } from "./viewer-sampling.js";
@@ -76,6 +76,7 @@ async function main(): Promise<void> {
     onReady: () => console.log("[ready] send a message in your Twitch channel; Ctrl+C stops Lamplight"),
     onEnvelope: async (envelope) => {
       await serialize(async () => {
+        const flare = createFlareEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
         const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
         const allEntries = [...entries, entry];
         if (envelope.metadata.subscription_type === "stream.offline" && state.currentStream) {
@@ -86,6 +87,13 @@ async function main(): Promise<void> {
         reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
         state.lastHash = entry.hash;
         entries.push(entry);
+        if (flare) {
+          const flareEntry = await appendEnvelope("data/events.jsonl", flare, state.lastHash);
+          reduceEnvelope(state, flare, { broadcasterLogin: config.channelLogin, ignoredUsers });
+          state.lastHash = flareEntry.hash;
+          entries.push(flareEntry);
+          console.log(`[flare] ${String((envelope.payload.event ?? {}).chatter_user_name ?? "viewer")}`);
+        }
         await writeState("data/state.json", state);
         overlay.broadcast(state);
       });

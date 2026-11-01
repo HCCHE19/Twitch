@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyState, historicalOpacity, isPresenceMessage, lampScale, reduceEnvelope } from "../src/presence.js";
+import { createFlareEnvelope, emptyState, historicalOpacity, isPresenceMessage, lampScale, reduceEnvelope } from "../src/presence.js";
 import type { EventSubEnvelope } from "../src/types.js";
 
 function envelope(id: string, type: string, event: Record<string, unknown>): EventSubEnvelope {
@@ -74,5 +74,19 @@ describe("presence rules", () => {
       totalLamps: 2,
       returningLamps: 1
     });
+  });
+
+  it("accepts only a repeat single emote flare and enforces a restart-safe ten-second cooldown", () => {
+    const state = emptyState();
+    const options = { broadcasterLogin: "host" };
+    reduceEnvelope(state, envelope("1", "stream.online", { id: "s1" }), options);
+    reduceEnvelope(state, chat("2", "viewer", "!lamp"), options);
+    expect(createFlareEnvelope(state, chat("3", "viewer", "!lamp"), options)).toBeNull();
+    const first = createFlareEnvelope(state, chat("4", "viewer", "Kappa", [{ type: "emote", text: "Kappa" }]), options);
+    expect(first?.metadata.subscription_type).toBe("lamplight.flare");
+    reduceEnvelope(state, first!, options);
+    expect(createFlareEnvelope(state, chat("5", "viewer", "Kappa", [{ type: "emote", text: "Kappa" }]), options)).toBeNull();
+    const afterCooldown = createFlareEnvelope(state, chat("14", "viewer", "Kappa", [{ type: "emote", text: "Kappa" }]), options);
+    expect(afterCooldown?.payload.event).toMatchObject({ stream_id: "s1", user_id: "user-viewer", source_message_id: "14" });
   });
 });

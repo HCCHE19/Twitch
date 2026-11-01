@@ -55,6 +55,7 @@ export interface DerivedState {
   processedMessageIds: string[];
   currentStream: StreamState | null;
   closingMoment: ClosingMoment | null;
+  flareAtByUserId: Record<string, string>;
   completedStreamIds: string[];
   lamps: Record<string, LampState>;
   demoReplay: boolean;

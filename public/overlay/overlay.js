@@ -1,6 +1,7 @@
 import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
 import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
+import { flarePulse } from "/shared/flare.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -64,9 +65,11 @@ function render(time) {
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
         const opacity = bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit);
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
-        const renderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
+        const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
+        const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
+        const renderedSize = Math.min(baseRenderedSize * flare.scale, item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale, glowAlpha
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35), glowAlpha
         });
         if (item.tier !== 0) continue;
         const labelSize = Math.max(12, item.size * .105);
@@ -100,6 +103,7 @@ function connect() {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
+      if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
     }
   });
   socket.addEventListener("close", () => { status.hidden = false; status.textContent = "RECONNECTING"; setTimeout(connect, 1000); });

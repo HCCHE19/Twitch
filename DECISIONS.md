@@ -69,3 +69,9 @@
 **Decided:** On `stream.offline`, show only the lamps lit in that stream and extinguish them in first-lit order at 150ms intervals. Then show `<total> lamps tonight, <returning> returning` for ten seconds and clear the entire band until the next stream begins. A returning lamp means it attended at least one earlier stream. The timestamped closing state may remain in the derived snapshot, but the overlay treats it as expired, so restart cannot replay an old closing. With reduced motion enabled, skip the sequence and show the summary immediately.
 
 **Action:** Added derived closing state, stable-position extinguishing, the ten-second summary, clear-until-next-live behavior, reduced-motion handling, and deterministic timing/returning-count tests.
+
+## 2026-11-02 — Repeat-emote flares
+
+**Decided:** An already-lit viewer may flare only by posting exactly one emote and nothing else. Accepted flares have a per-user ten-second cooldown and create a separate hash-chained `lamplight.flare` event referencing the source chat message. Repeat commands, ordinary text, multiple fragments, broadcaster messages, and configured bots do not flare. The overlay pulses size and glow for 600ms and shows no count. Cooldown state is derived from the ledger and therefore survives restart. Reduced-motion mode uses a brief non-moving glow emphasis.
+
+**Action:** Added flare eligibility, internal ledger events, cooldown-derived state, overlay pulse behavior, EventSub write ordering, and tests for message shape, cooldown, event linkage, duration, and absence of a displayed count.
