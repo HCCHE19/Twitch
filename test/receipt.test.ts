@@ -35,6 +35,9 @@ describe("presence receipts", () => {
     const html = receiptHtml(receipt);
     expect(html).toContain("Friend");
     expect(html).toContain("drawLampDesign");
+    expect(html).toContain("Public view · names only");
     expect(html).not.toContain("secret-user-id");
+    expect(html).not.toContain(receipt.receiptHash);
+    expect(html).not.toContain(receipt.receiptHash.slice(0, 16));
   });
 });

@@ -53,3 +53,7 @@
 **Decided:** Receipt dates must be immediately understandable to a non-technical reader, while the exact source timestamps remain available for auditability.
 
 **Action:** Added explicit Started, Ended, and Lit at labels; display timestamps in the viewer's local date/time format; and retain the exact UTC values in semantic `datetime` attributes and hover text. Receipt hashing and verification are unchanged.
+
+**Decided:** The public HTML must not display credential-like identifiers that a viewer could mistake for Twitch user IDs or secrets.
+
+**Action:** Removed the receipt-hash prefix from public HTML and replaced it with `Public view · names only`. The full receipt hash, Twitch user IDs, and source-event identifiers remain only in the gitignored local JSON used by the verifier; OAuth tokens and client secrets are never written to either receipt format.
