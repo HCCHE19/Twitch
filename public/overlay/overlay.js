@@ -1,5 +1,6 @@
 import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
 import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
+import { closingFrame } from "/shared/closing.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -30,13 +31,26 @@ function render(time) {
     backdrop.addColorStop(0, "#102536"); backdrop.addColorStop(.58, "#15202a"); backdrop.addColorStop(1, "#242326");
     context.fillStyle = backdrop; context.fillRect(0, 0, innerWidth, innerHeight);
   }
-  const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
-  const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
-  sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
-  context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   canvas.style.opacity = preferences.hidden ? "0" : "1";
+  const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
+  const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
+  if (closing.kind !== "clear") {
+    const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
+    sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
+    context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
+  }
   if (state) {
-    const lamps = Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt));
+    if (closing.kind === "summary") {
+      context.fillStyle = "rgba(246,232,207,.9)";
+      context.font = `600 ${Math.max(18, innerHeight * .024)}px "Space Grotesk", system-ui, sans-serif`;
+      context.textAlign = "center";
+      context.fillText(closing.text, innerWidth / 2, baseline);
+    }
+    const closingIds = state.closingMoment?.litUserIds ?? [];
+    const visibleClosingIds = new Set(closing.kind === "lamps" ? closing.visibleUserIds : []);
+    const lamps = closing.kind === "lamps"
+      ? closingIds.flatMap((userId) => state.lamps[userId] ? [state.lamps[userId]] : [])
+      : closing.kind === "none" ? Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt)) : [];
     const visible = separateAdjacentHues(
       selectVisibleLamps(lamps),
       (item) => generateLamp(item.lamp.userId).hue,
@@ -46,7 +60,8 @@ function render(time) {
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
     for (const item of layout(visible)) {
       if (item.lamp) {
-        const bright = state.currentStream?.litUserIds.includes(item.lamp.userId);
+        if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
+        const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
         const opacity = bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit);
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const renderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
@@ -84,6 +99,7 @@ function connect() {
     if (packet.type === "state") {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
+      if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
     }
   });
   socket.addEventListener("close", () => { status.hidden = false; status.textContent = "RECONNECTING"; setTimeout(connect, 1000); });

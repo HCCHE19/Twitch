@@ -42,11 +42,19 @@ export interface StreamState {
   litUserIds: string[];
 }
 
+export interface ClosingMoment {
+  startedAt: string;
+  litUserIds: string[];
+  totalLamps: number;
+  returningLamps: number;
+}
+
 export interface DerivedState {
   schemaVersion: 1;
   lastHash: string;
   processedMessageIds: string[];
   currentStream: StreamState | null;
+  closingMoment: ClosingMoment | null;
   completedStreamIds: string[];
   lamps: Record<string, LampState>;
   demoReplay: boolean;

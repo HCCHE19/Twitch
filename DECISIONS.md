@@ -63,3 +63,9 @@
 **Decided:** While live, sample Twitch `GET /streams` immediately on live detection and every 60 seconds. Append each successful sample as its own hash-chained `lamplight.viewer.sample` event containing the stream ID, Twitch `viewer_count`, and the count of lamps lit at that exact moment. The receipt includes every sample, the peak of each series, and a plain-English comparison. A failed or stale API response is logged and skipped; it must never stop EventSub handling or write a misleading zero. Ledger writes are serialized so a timer and EventSub notification cannot fork the hash chain.
 
 **Action:** Added the sampler, internal event, receipt comparison, HTML line, API parsing, concurrency guard, and tests for the 60-second live-only schedule, non-overlap, event shape, peaks, summary, verification, and privacy.
+
+## 2026-11-02 — Closing moment
+
+**Decided:** On `stream.offline`, show only the lamps lit in that stream and extinguish them in first-lit order at 150ms intervals. Then show `<total> lamps tonight, <returning> returning` for ten seconds and clear the entire band until the next stream begins. A returning lamp means it attended at least one earlier stream. The timestamped closing state may remain in the derived snapshot, but the overlay treats it as expired, so restart cannot replay an old closing. With reduced motion enabled, skip the sequence and show the summary immediately.
+
+**Action:** Added derived closing state, stable-position extinguishing, the ten-second summary, clear-until-next-live behavior, reduced-motion handling, and deterministic timing/returning-count tests.

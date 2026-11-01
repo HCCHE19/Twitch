@@ -57,4 +57,22 @@ describe("presence rules", () => {
   it("uses the specified historical opacity floor", () => {
     expect([0, 1, 2, 3, 20].map(historicalOpacity)).toEqual([1, 0.45, 0.3, 0.20, 0.20]);
   });
+
+  it("captures the lit order and returning count for the closing moment", () => {
+    const state = emptyState();
+    const options = { broadcasterLogin: "host" };
+    reduceEnvelope(state, envelope("1", "stream.online", { id: "s1" }), options);
+    reduceEnvelope(state, chat("2", "returning", "!lamp"), options);
+    reduceEnvelope(state, envelope("3", "stream.offline", {}), options);
+    reduceEnvelope(state, envelope("4", "stream.online", { id: "s2" }), options);
+    reduceEnvelope(state, chat("5", "newcomer", "!lamp"), options);
+    reduceEnvelope(state, chat("6", "returning", "!lamp"), options);
+    reduceEnvelope(state, envelope("7", "stream.offline", {}), options);
+    expect(state.closingMoment).toEqual({
+      startedAt: "2026-11-01T00:00:07Z",
+      litUserIds: ["user-newcomer", "user-returning"],
+      totalLamps: 2,
+      returningLamps: 1
+    });
+  });
 });

@@ -8,6 +8,7 @@ export function emptyState(demoReplay = false): DerivedState {
     lastHash: "",
     processedMessageIds: [],
     currentStream: null,
+    closingMoment: null,
     completedStreamIds: [],
     lamps: {},
     demoReplay
@@ -37,12 +38,19 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   if (type === "stream.online" || type === "lamplight.stream.recovered") {
     for (const lamp of Object.values(state.lamps)) lamp.streamsSinceLit += 1;
     const id = String(event.id ?? `recovered-${envelope.metadata.message_timestamp}`);
+    state.closingMoment = null;
     state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
     return state;
   }
   if (type === "stream.offline" || type === "lamplight.stream.finalized") {
     if (!state.currentStream) return state;
     const lit = new Set(state.currentStream.litUserIds);
+    state.closingMoment = {
+      startedAt: envelope.metadata.message_timestamp,
+      litUserIds: [...state.currentStream.litUserIds],
+      totalLamps: state.currentStream.litUserIds.length,
+      returningLamps: state.currentStream.litUserIds.filter((userId) => (state.lamps[userId]?.attendedStreamIds.length ?? 0) > 1).length
+    };
     for (const lamp of Object.values(state.lamps)) {
       if (lit.has(lamp.userId)) lamp.streamsSinceLit = 0;
       else { lamp.streamsSinceLit += 1; lamp.streak = 0; }
