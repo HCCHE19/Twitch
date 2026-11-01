@@ -44,6 +44,13 @@ export function drawLamp(context, userId, x, y, size, brightness, time = 0) {
   context.translate(x, y);
   context.globalAlpha = Math.max(0.18, brightness);
 
+  const ground = context.createRadialGradient(0, size * 0.12, 0, 0, size * 0.12, size * 0.48);
+  ground.addColorStop(0, `hsla(${lamp.hue}, ${lamp.saturation}%, ${lamp.lightness}%, ${0.10 + brightness * 0.16})`);
+  ground.addColorStop(0.55, "rgba(3, 8, 11, .24)");
+  ground.addColorStop(1, "rgba(3, 8, 11, 0)");
+  context.save(); context.scale(1, .24); context.fillStyle = ground;
+  context.beginPath(); context.arc(0, size * .5, size * .48, 0, Math.PI * 2); context.fill(); context.restore();
+
   const halo = context.createRadialGradient(0, -size * 0.42, size * 0.05, 0, -size * 0.42, size * 0.72);
   halo.addColorStop(0, glow);
   halo.addColorStop(0.55, "rgba(3, 8, 11, .34)");
