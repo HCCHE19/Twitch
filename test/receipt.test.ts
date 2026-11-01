@@ -46,4 +46,11 @@ describe("presence receipts", () => {
     expect(html).not.toContain(receipt.receiptHash);
     expect(html).not.toContain(receipt.receiptHash.slice(0, 16));
   });
+
+  it("keeps pre-sampling receipts viewable", () => {
+    const { receipt } = fixture();
+    const legacy = { ...receipt } as Partial<typeof receipt>;
+    delete legacy.attendance;
+    expect(receiptHtml(legacy as typeof receipt)).toContain("No viewer-count samples were available for this stream.");
+  });
 });

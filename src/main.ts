@@ -30,6 +30,7 @@ async function main(): Promise<void> {
     const recoveryEntry = await appendEnvelope("data/events.jsonl", recoveryEnvelope, state.lastHash);
     reduceEnvelope(state, recoveryEnvelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
     state.lastHash = recoveryEntry.hash;
+    entries.push(recoveryEntry);
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);

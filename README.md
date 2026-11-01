@@ -34,8 +34,9 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
 
 1. Run `npm start` and leave that Terminal window open.
 2. In OBS, add a Browser source using `http://localhost:8787/overlay/`, width `1920`, and height `1080`. Leave Local file, Control audio via OBS, and custom frame rate off.
-3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat.
-4. Stop the stream. Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `receipts/`.
+3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat. Once lit, another message containing exactly one emote produces a 600ms flare, with a ten-second per-viewer cooldown and no counter.
+4. While live, Lamplight samples Twitch's reported `viewer_count` immediately and every 60 seconds, recording it beside the number of lamps lit at that moment.
+5. Stop the stream. Lamps extinguish in first-lit order, the band briefly reports total and returning lamps, and Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `receipts/`.
 
 Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
 Open `http://localhost:8787/control/` privately to compact or hide the band.
@@ -46,7 +47,7 @@ If the offline event never arrives, run `npm run finalize`. Verify a receipt wit
 npm run verify -- receipts/<stream-id>.json
 ```
 
-The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
+The receipt includes the minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
 
 ## Demo and tests
 

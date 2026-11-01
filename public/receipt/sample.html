@@ -8,6 +8,7 @@
     @font-face{font-family:Space;src:url(/fonts/SpaceGrotesk-wght.woff2)}
     *{box-sizing:border-box}body{margin:0;padding:48px;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif}
     main{max-width:820px;margin:auto}header{padding-bottom:24px;border-bottom:1px solid #294048}h1{margin:0 0 8px;color:#ffc56f}
+    .comparison{margin:18px 0;padding:14px 16px;border:1px solid #294048;border-radius:10px;background:#0b181d}.comparison strong{display:block;color:#b8cbc9;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
     article{display:flex;align-items:center;gap:22px;padding:14px 0;border-bottom:1px solid #182c32}canvas{width:120px;height:120px}
     h2,p{margin:4px 0}time,.seal{color:#8eaaa9;font-size:13px}
   </style>
@@ -15,6 +16,7 @@
 <body>
 <main>
   <header><h1>Presence Receipt</h1><p>Fictional public sample</p><p class="seal">3 present · Public view · names only</p></header>
+  <section class="comparison"><strong>Declared versus verified presence</strong><p>Twitch reported 5 viewers at peak; 3 lit a lamp.</p></section>
   <section id="rows"></section>
 </main>
 <script type="module">

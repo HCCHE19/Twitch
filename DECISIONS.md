@@ -75,3 +75,9 @@
 **Decided:** An already-lit viewer may flare only by posting exactly one emote and nothing else. Accepted flares have a per-user ten-second cooldown and create a separate hash-chained `lamplight.flare` event referencing the source chat message. Repeat commands, ordinary text, multiple fragments, broadcaster messages, and configured bots do not flare. The overlay pulses size and glow for 600ms and shows no count. Cooldown state is derived from the ledger and therefore survives restart. Reduced-motion mode uses a brief non-moving glow emphasis.
 
 **Action:** Added flare eligibility, internal ledger events, cooldown-derived state, overlay pulse behavior, EventSub write ordering, and tests for message shape, cooldown, event linkage, duration, and absence of a displayed count.
+
+## 2026-11-02 — Integration compatibility
+
+**Decided:** Preserve receipts made before viewer sampling and preserve a single unbroken in-memory/file ledger after mid-stream recovery.
+
+**Action:** Public rendering now gives legacy receipts an explicit no-samples comparison instead of failing, and boot recovery adds its event to the in-memory entry list immediately after appending it to disk. Updated the specification and setup documentation for sampling, closing, and flares.
