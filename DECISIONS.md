@@ -47,3 +47,9 @@
 **Decided:** Lamp hue is continuous across the full wheel and remains seeded solely from user ID. Tone is seeded 50/50 pastel or deep, and flame colour is seeded as warm gold, soft white, or a low-saturation complement. Row placement may reorder identities by up to three positions locally, with a wider deterministic repair fallback, so adjacent hues differ by at least 45 degrees whenever mathematically possible. Lamp identity and the previously approved shape, row, density, glow, and dim-state geometry do not change.
 
 **Action:** Replaced palette bands with deterministic continuous hue, tone, and flame colour; implemented circular hue-distance placement with explicit impossible-case logging; preserved the locked geometry; and added tests covering 500 rows of 30 plus the 1,000-ID tone/flame distribution. The user approved the final `?bg=1` preview and locked all visuals.
+
+## 2026-11-02 — Human-readable receipt times
+
+**Decided:** Receipt dates must be immediately understandable to a non-technical reader, while the exact source timestamps remain available for auditability.
+
+**Action:** Added explicit Started, Ended, and Lit at labels; display timestamps in the viewer's local date/time format; and retain the exact UTC values in semantic `datetime` attributes and hover text. Receipt hashing and verification are unchanged.
