@@ -63,14 +63,16 @@ npm run secrets:check
 
 ## Why presence
 
-- Nonnecke and Preece (2000) found lurkers represented 45.5%–82% of members across 109 mailing lists.
-- Nematzadeh et al. (2019), analysing 1.28 billion Twitch messages in *Royal Society Open Science*, found participation per user collapses once a channel exceeds roughly 40 messages per five minutes.
+- [Nonnecke and Preece (2000)](https://www.cis.uoguelph.ca/~nonnecke/research/demographics.pdf) found lurkers represented 45.5%–82% of members across 109 mailing lists.
+- [Nematzadeh et al. (2019)](https://royalsocietypublishing.org/doi/10.1098/rsos.191412), analysing 1.28 billion Twitch messages in *Royal Society Open Science*, found participation per user collapses once a channel exceeds roughly 40 messages per five minutes.
 - NINJAL (2026) reported that the busiest minute of a VTuber stream contained 683 comments while the streamer read one, and fewer than 10% received any acknowledgement.
-- Wohn and Freeman (2020), ACM IMX, documented a streamer asking lurkers to post an emote so she could read their names, and small streamers hiding viewer counts because low numbers were discouraging.
-- Press, not research: Tubefilter reported in August 2025 that more than 41,000 channels were flagged during Twitch's viewbot crackdown and that analysts saw 5%–24% viewership drops, which Twitch disputed.
+- [Wohn and Freeman (2020)](https://doi.org/10.1145/3391614.3393653), ACM IMX, documented a streamer asking lurkers to post an emote so she could read their names, and small streamers hiding viewer counts because low numbers were discouraging.
+- Press, not research: [Tubefilter reported in August 2025](https://www.tubefilter.com/2025/08/27/twitch-viewbot-crackdown-zach-bussey/) that more than 41,000 channels were flagged during Twitch's viewbot crackdown and that analysts saw 5%–22% viewership drops, which Twitch disputed.
 
 These sources motivate the problem; no study yet shows that lightweight presence makes viewers return. Lamplight makes that hypothesis testable without turning presence into competition.
 
 ## Privacy and boundaries
 
 Real `data/` and `.env` are gitignored. Private receipt JSON may contain Twitch user IDs because verification needs stable identity; public receipt HTML contains display names only. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
+
+The committed [fictional sample receipt](public/receipt/sample.html) contains names only. It is a design sample, not evidence from a real stream.
