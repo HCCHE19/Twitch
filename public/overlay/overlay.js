@@ -17,16 +17,20 @@ function resize() {
 
 function layout(items) {
   const count = Math.max(1, items.length);
+  if (count === 1) {
+    const size = Math.max(120, Math.min(160, innerWidth * .08));
+    return [{ ...items[0], x: Math.max(105, innerWidth * .07), y: innerHeight - 82, size }];
+  }
   const columns = count === 1 ? 1 : Math.min(12, Math.max(1, Math.ceil(Math.sqrt(count * (innerWidth / innerHeight)))));
   const rows = Math.ceil(count / columns);
   const cellWidth = innerWidth / columns;
   const cellHeight = innerHeight / Math.max(1, rows);
-  const maxSize = count === 1 ? 320 : count <= 4 ? 190 : 128;
+  const maxSize = count <= 4 ? 190 : 128;
   const size = Math.max(42, Math.min(maxSize, Math.min(cellWidth * .68, cellHeight * .64)));
   return items.map((item, index) => ({
     ...item,
     x: (index % columns + .5) * cellWidth,
-    y: count === 1 ? innerHeight * .70 : (Math.floor(index / columns) + .70) * cellHeight,
+    y: (Math.floor(index / columns) + .70) * cellHeight,
     size
   }));
 }
