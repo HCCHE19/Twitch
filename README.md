@@ -35,7 +35,7 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
 1. Run `npm start` and leave that Terminal window open.
 2. In OBS, add a Browser source using `http://localhost:8787/overlay/`, width `1920`, and height `1080`. Leave Local file, Control audio via OBS, and custom frame rate off.
 3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat.
-4. Stop the stream. Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `data/receipts/`.
+4. Stop the stream. Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `receipts/`.
 
 Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
 Open `http://localhost:8787/control/` privately to compact or hide the band.
@@ -43,7 +43,7 @@ Open `http://localhost:8787/control/` privately to compact or hide the band.
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 
 ```bash
-npm run verify -- data/receipts/<stream-id>.json
+npm run verify -- receipts/<stream-id>.json
 ```
 
 The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.

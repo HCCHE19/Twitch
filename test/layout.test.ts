@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error The overlay layout is intentionally plain browser JavaScript.
-import { densityTier, rowLayout, selectVisibleLamps } from "../public/shared/layout.js";
+import { densityTier, hueDistance, rowLayout, selectVisibleLamps, separateAdjacentHues } from "../public/shared/layout.js";
+import { generateLamp } from "../src/lamp-generator.js";
 
 const lamps = (count: number) => Array.from({ length: count }, (_, index) => ({ userId: String(index) }));
 
@@ -33,5 +34,16 @@ describe("single-band overlay layout", () => {
     expect(selected.at(-1)).toEqual({ cluster: 140 });
     const row = rowLayout(selected, 200, 1920, 1080, "bottom");
     expect(row.every((item: { y: number }) => item.y === 950.4)).toBe(true);
+  });
+
+  it("keeps adjacent hues at least 45 degrees apart across 500 random 30-lamp rows", () => {
+    for (let rowIndex = 0; rowIndex < 500; rowIndex += 1) {
+      const items = Array.from({ length: 30 }, (_, index) => ({ lamp: { userId: `random-row-${rowIndex}-${index}` } }));
+      let impossible = false;
+      const arranged = separateAdjacentHues(items, (item: { lamp: { userId: string } }) => generateLamp(item.lamp.userId).hue, () => { impossible = true; });
+      const hues = arranged.map((item: { lamp: { userId: string } }) => generateLamp(item.lamp.userId).hue);
+      const violations = hues.slice(1).filter((hue: number, index: number) => hueDistance(hue, hues[index]) < 45).length;
+      if (!impossible) expect(violations, `row ${rowIndex}`).toBe(0);
+    }
   });
 });

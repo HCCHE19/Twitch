@@ -29,6 +29,7 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;
+    const receiptRequest = requestPath.startsWith("/receipts/");
     const relative = requestPath === "/" || requestPath === "/overlay" || requestPath === "/overlay/"
       ? "overlay/index.html"
       : requestPath === "/control" || requestPath === "/control/"
@@ -36,7 +37,7 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
         : requestPath.replace(/^\/+/, "");
     const safe = normalize(relative);
     if (safe.startsWith("..")) { response.writeHead(403).end("Forbidden"); return; }
-    const file = join(root, safe);
+    const file = join(receiptRequest ? process.cwd() : root, safe);
     try {
       const info = await stat(file);
       if (!info.isFile()) throw new Error("not a file");

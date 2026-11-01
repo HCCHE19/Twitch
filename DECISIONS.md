@@ -41,3 +41,9 @@
 **Decided:** Freeze the accepted five-lamp design and single-band composition. Bottom/top baselines are 88%/12%; lamps begin at x=80 with 150px full-size spacing and only ±12px seeded vertical jitter. Density tiers are full-size with labels through 12, collision-clamped 70% without labels through 30, and collision-clamped 50% through 60; further viewers become one counted cluster. Dim lamps are desaturated to 20% and use .45/.30/.20 opacity. Total glow is capped as density rises. Five silhouettes, three bases, four patterns, three frames, three finials, and three flames are seeded from user ID. No further visual changes unless something breaks.
 
 **Action:** Implemented and tested the locked row, density/glow caps, exact 60-plus-cluster limit, compact/hide local controls, shared overlay/receipt generator, browser-only `?bg=1`, and generated 5/30/200 demos. The user approved the final 30- and 200-person OBS views.
+
+## 2026-11-02 — Final colour lock
+
+**Decided:** Lamp hue is continuous across the full wheel and remains seeded solely from user ID. Tone is seeded 50/50 pastel or deep, and flame colour is seeded as warm gold, soft white, or a low-saturation complement. Row placement may reorder identities by up to three positions locally, with a wider deterministic repair fallback, so adjacent hues differ by at least 45 degrees whenever mathematically possible. Lamp identity and the previously approved shape, row, density, glow, and dim-state geometry do not change.
+
+**Action:** Replaced palette bands with deterministic continuous hue, tone, and flame colour; implemented circular hue-distance placement with explicit impossible-case logging; preserved the locked geometry; and added tests covering 500 rows of 30 plus the 1,000-ID tone/flame distribution. The user approved the final `?bg=1` preview and locked all visuals.

@@ -1,5 +1,5 @@
 import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
-import { rowLayout, selectVisibleLamps } from "/shared/layout.js";
+import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -32,12 +32,16 @@ function render(time) {
   }
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
-  sill.addColorStop(0, "rgba(255,255,255,0)"); sill.addColorStop(.48, "rgba(255,255,255,.08)"); sill.addColorStop(.58, "rgba(255,255,255,.055)"); sill.addColorStop(1, "rgba(255,255,255,0)");
+  sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
   context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   canvas.style.opacity = preferences.hidden ? "0" : "1";
   if (state) {
     const lamps = Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt));
-    const visible = selectVisibleLamps(lamps);
+    const visible = separateAdjacentHues(
+      selectVisibleLamps(lamps),
+      (item) => generateLamp(item.lamp.userId).hue,
+      ({ rowLength, collisions }) => console.warn(`[layout] ${collisions} unavoidable hue-distance violation(s) at row length ${rowLength}`)
+    );
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
     for (const item of layout(visible)) {

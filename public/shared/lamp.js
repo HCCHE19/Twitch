@@ -23,13 +23,13 @@ function mulberry32(seed) {
 
 export function generateLamp(userId) {
   const random = mulberry32(xmur3(`lamplight:v2:${userId}`)());
-  const roll = random();
-  const palette = roll < 0.60 ? "amber" : roll < 0.85 ? "teal" : "rose";
-  const [minHue, maxHue] = palette === "amber" ? [20, 50] : palette === "teal" ? [170, 195] : [335, 355];
+  const hue = random() * 360;
+  const tone = random() < .5 ? "pastel" : "deep";
+  const flameColour = ["gold", "white", "complement"][Math.floor(random() * 3)];
   return {
     silhouette: Math.floor(random() * 5), base: Math.floor(random() * 3), glassPattern: Math.floor(random() * 4),
-    frame: Math.floor(random() * 3), finial: Math.floor(random() * 3), flame: Math.floor(random() * 3), palette,
-    hue: minHue + random() * (maxHue - minHue), saturation: 66 + random() * 18, lightness: 52 + random() * 14,
+    frame: Math.floor(random() * 3), finial: Math.floor(random() * 3), flame: Math.floor(random() * 3), tone, flameColour,
+    hue, saturation: tone === "pastel" ? 45 + random() * 10 : 75 + random() * 15, lightness: tone === "pastel" ? 68 + random() * 7 : 50 + random() * 8,
     tilt: -6 + random() * 12, verticalOffset: -12 + random() * 24, motionPhase: random() * Math.PI * 2
   };
 }
@@ -80,7 +80,10 @@ export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, 
   const glowScale = options.glowScale ?? 1;
   const glowAlpha = options.glowAlpha ?? 1;
   const displaySaturation = brightness < 1 ? lamp.saturation * .20 : lamp.saturation;
-  const color = `hsl(${lamp.hue}, ${displaySaturation}%, ${lamp.lightness}%)`;
+  const flameHue = lamp.flameColour === "gold" ? 42 : lamp.flameColour === "white" ? 45 : (lamp.hue + 180) % 360;
+  const flameSaturation = lamp.flameColour === "gold" ? 90 : lamp.flameColour === "white" ? 20 : 30;
+  const flameLightness = lamp.flameColour === "gold" ? 67 : lamp.flameColour === "white" ? 94 : 70;
+  const flameColor = `hsl(${flameHue}, ${brightness < 1 ? flameSaturation * .20 : flameSaturation}%, ${flameLightness}%)`;
   const flicker = Math.sin(time * .0022 + lamp.motionPhase) * size * .012 * brightness;
   context.save(); context.translate(x, y); context.globalAlpha = Math.max(.18, brightness);
 
@@ -120,7 +123,7 @@ export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, 
     context.fillStyle = "rgba(8,15,17,.94)"; context.beginPath(); context.roundRect(-size * .09, -size * .86, size * .18, size * .075, size * .025); context.fill();
   }
 
-  context.fillStyle = color; context.shadowColor = color; context.shadowBlur = size * (.07 + brightness * .13);
+  context.fillStyle = flameColor; context.shadowColor = flameColor; context.shadowBlur = size * (.07 + brightness * .13);
   context.beginPath();
   if (lamp.flame === 0) {
     context.moveTo(0, -size * .25); context.bezierCurveTo(-size * .085, -size * .34, -size * .04, -size * .47, 0, -size * .52 + flicker); context.bezierCurveTo(size * .08, -size * .42, size * .08, -size * .32, 0, -size * .25);

@@ -1,4 +1,5 @@
-export type PaletteFamily = "amber" | "teal" | "rose";
+export type Tone = "pastel" | "deep";
+export type FlameColour = "gold" | "white" | "complement";
 
 export interface LampDesign {
   silhouette: 0 | 1 | 2 | 3 | 4;
@@ -7,7 +8,8 @@ export interface LampDesign {
   frame: 0 | 1 | 2;
   finial: 0 | 1 | 2;
   flame: 0 | 1 | 2;
-  palette: PaletteFamily;
+  tone: Tone;
+  flameColour: FlameColour;
   hue: number;
   saturation: number;
   lightness: number;
@@ -41,9 +43,9 @@ function mulberry32(seed: number): () => number {
 
 export function generateLamp(userId: string): LampDesign {
   const random = mulberry32(xmur3(`lamplight:v2:${userId}`)());
-  const roll = random();
-  const palette: PaletteFamily = roll < 0.60 ? "amber" : roll < 0.85 ? "teal" : "rose";
-  const [minHue, maxHue] = palette === "amber" ? [20, 50] : palette === "teal" ? [170, 195] : [335, 355];
+  const hue = random() * 360;
+  const tone: Tone = random() < .5 ? "pastel" : "deep";
+  const flameColour: FlameColour = (["gold", "white", "complement"] as const)[Math.floor(random() * 3)]!;
   return {
     silhouette: Math.floor(random() * 5) as LampDesign["silhouette"],
     base: Math.floor(random() * 3) as LampDesign["base"],
@@ -51,10 +53,11 @@ export function generateLamp(userId: string): LampDesign {
     frame: Math.floor(random() * 3) as LampDesign["frame"],
     finial: Math.floor(random() * 3) as LampDesign["finial"],
     flame: Math.floor(random() * 3) as LampDesign["flame"],
-    palette,
-    hue: minHue + random() * (maxHue - minHue),
-    saturation: 66 + random() * 18,
-    lightness: 52 + random() * 14,
+    tone,
+    flameColour,
+    hue,
+    saturation: tone === "pastel" ? 45 + random() * 10 : 75 + random() * 15,
+    lightness: tone === "pastel" ? 68 + random() * 7 : 50 + random() * 8,
     tilt: -6 + random() * 12,
     verticalOffset: -12 + random() * 24,
     motionPhase: random() * Math.PI * 2
@@ -66,5 +69,5 @@ export function discreteLampSignature(design: LampDesign): string {
 }
 
 export function renderedLampSignature(design: LampDesign): string {
-  return [discreteLampSignature(design), design.palette, design.hue.toFixed(1), design.saturation.toFixed(1), design.lightness.toFixed(1), design.tilt.toFixed(1)].join(":");
+  return [discreteLampSignature(design), design.tone, design.flameColour, design.hue.toFixed(1), design.saturation.toFixed(1), design.lightness.toFixed(1), design.tilt.toFixed(1)].join(":");
 }
