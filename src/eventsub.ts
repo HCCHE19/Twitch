@@ -1,12 +1,13 @@
 import WebSocket, { type RawData } from "ws";
 import type { Config } from "./config.js";
 import { createSubscription } from "./twitch-api.js";
+import type { EventSubEnvelope } from "./types.js";
 
 const EVENTSUB_URL = "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30";
 const SUBSCRIPTIONS = ["channel.chat.message", "stream.online", "stream.offline"] as const;
 
 interface Envelope {
-  metadata?: { message_id?: string; message_type?: string; subscription_type?: string };
+  metadata?: { message_id?: string; message_type?: string; message_timestamp?: string; subscription_type?: string };
   payload?: Record<string, unknown>;
 }
 
@@ -14,6 +15,7 @@ export interface EventSubOptions {
   config: Config;
   broadcasterUserId: string;
   onReady?: () => void;
+  onEnvelope?: (envelope: EventSubEnvelope) => void | Promise<void>;
   onChat?: (displayName: string, text: string) => void;
   onStream?: (type: "stream.online" | "stream.offline", event: Record<string, unknown>) => void;
 }
@@ -102,6 +104,17 @@ export class EventSubClient {
 
     const event = envelope.payload?.event as Record<string, unknown> | undefined;
     if (!event) return;
+    if (id && envelope.metadata?.message_timestamp && envelope.metadata.subscription_type) {
+      await this.options.onEnvelope?.({
+        metadata: {
+          message_id: id,
+          message_type: "notification",
+          message_timestamp: envelope.metadata.message_timestamp,
+          subscription_type: envelope.metadata.subscription_type
+        },
+        payload: envelope.payload as EventSubEnvelope["payload"]
+      });
+    }
     const subscriptionType = envelope.metadata?.subscription_type;
     if (subscriptionType === "channel.chat.message") {
       const message = event.message as { text?: string } | undefined;

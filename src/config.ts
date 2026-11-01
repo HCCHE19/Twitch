@@ -42,3 +42,11 @@ export async function loadConfig(env = process.env): Promise<Config> {
   }
   return config;
 }
+
+export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
+  const values = JSON.parse(await readFile(path, "utf8")) as unknown;
+  if (!Array.isArray(values) || values.some((value) => typeof value !== "string")) {
+    throw new Error(`${path} must contain a JSON array of Twitch login names.`);
+  }
+  return values.map((value) => value.toLowerCase());
+}

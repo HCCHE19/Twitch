@@ -8,6 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "dev": "npm run build && npm start",
+    "demo": "npm run build && node dist/demo.js",
+    "rebuild": "npm run build && node dist/rebuild.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "tsc -p tsconfig.json --noEmit",
