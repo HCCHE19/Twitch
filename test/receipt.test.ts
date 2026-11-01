@@ -34,7 +34,7 @@ describe("presence receipts", () => {
     const { receipt } = fixture();
     const html = receiptHtml(receipt);
     expect(html).toContain("Friend");
-    expect(html).toContain("drawLamp");
+    expect(html).toContain("drawLampDesign");
     expect(html).not.toContain("secret-user-id");
   });
 });

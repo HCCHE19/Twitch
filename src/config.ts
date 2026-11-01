@@ -6,6 +6,8 @@ export interface Config {
   channelLogin: string;
 }
 
+export type OverlayLayout = "bottom" | "top";
+
 function parseEnvFile(source: string): Record<string, string> {
   const values: Record<string, string> = {};
   for (const rawLine of source.split(/\r?\n/u)) {
@@ -41,6 +43,18 @@ export async function loadConfig(env = process.env): Promise<Config> {
     throw new Error(`Missing configuration: ${missing.join(", ")}. Copy .env.example to .env and fill it in.`);
   }
   return config;
+}
+
+export async function loadOverlayLayout(env = process.env): Promise<OverlayLayout> {
+  let fileValues: Record<string, string> = {};
+  try {
+    fileValues = parseEnvFile(await readFile(".env", "utf8"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const layout = (env.LAYOUT?.trim() || fileValues.LAYOUT?.trim() || "bottom").toLowerCase();
+  if (layout !== "bottom" && layout !== "top") throw new Error("LAYOUT must be bottom or top");
+  return layout;
 }
 
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {

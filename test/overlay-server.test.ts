@@ -8,14 +8,17 @@ import { emptyState } from "../src/presence.js";
 describe("overlay server", () => {
   it("serves the overlay and sends an initial state snapshot", async () => {
     const state = emptyState();
-    const overlay = await startOverlayServer(() => state, 0);
+    const overlay = await startOverlayServer(() => state, 0, "top");
     const port = (overlay.server.address() as AddressInfo).port;
     const response = await fetch(`http://127.0.0.1:${port}/overlay/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("Lamplight Overlay");
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const [data] = await once(socket, "message") as [Buffer];
-    expect(JSON.parse(data.toString())).toMatchObject({ type: "state", state: { schemaVersion: 1 } });
+    expect(JSON.parse(data.toString())).toMatchObject({ type: "state", state: { schemaVersion: 1 }, layout: "top", preferences: { compact: false, hidden: false } });
+    socket.send(JSON.stringify({ type: "preferences", compact: true, hidden: true }));
+    const [updated] = await once(socket, "message") as [Buffer];
+    expect(JSON.parse(updated.toString())).toMatchObject({ preferences: { compact: true, hidden: true } });
     socket.close();
     await once(socket, "close");
     await overlay.close();

@@ -37,6 +37,9 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
 3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat.
 4. Stop the stream. Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `data/receipts/`.
 
+Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
+Open `http://localhost:8787/control/` privately to compact or hide the band.
+
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 
 ```bash
@@ -51,6 +54,7 @@ Replay Twitch-shaped fixtures through the production handlers at an adjustable s
 
 ```bash
 npm run demo -- test/fixtures/demo-events.jsonl --speed 2
+npm run demo -- --lamps 30 --speed 1000
 ```
 
 The overlay displays `DEMO REPLAY`; demo output must not be presented as a real Twitch test.

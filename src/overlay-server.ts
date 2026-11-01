@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import type { DerivedState } from "./types.js";
+import type { OverlayLayout } from "./config.js";
 
 const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -18,14 +19,21 @@ export interface OverlayServer {
   close: () => Promise<void>;
 }
 
-export async function startOverlayServer(getState: () => DerivedState, port = 8787): Promise<OverlayServer> {
+interface OverlayPreferences { compact: boolean; hidden: boolean }
+
+export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom"): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
+  const preferences: OverlayPreferences = { compact: false, hidden: false };
+  const packet = (state: DerivedState): string => JSON.stringify({ type: "state", state, layout, preferences });
+  const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;
     const relative = requestPath === "/" || requestPath === "/overlay" || requestPath === "/overlay/"
       ? "overlay/index.html"
-      : requestPath.replace(/^\/+/, "");
+      : requestPath === "/control" || requestPath === "/control/"
+        ? "control/index.html"
+        : requestPath.replace(/^\/+/, "");
     const safe = normalize(relative);
     if (safe.startsWith("..")) { response.writeHead(403).end("Forbidden"); return; }
     const file = join(root, safe);
@@ -45,13 +53,24 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
     if (request.url !== "/ws") { socket.destroy(); return; }
     sockets.handleUpgrade(request, socket, head, (ws) => sockets.emit("connection", ws, request));
   });
-  sockets.on("connection", (socket) => socket.send(JSON.stringify({ type: "state", state: getState() })));
+  sockets.on("connection", (socket) => {
+    socket.send(packet(getState()));
+    socket.on("message", (raw) => {
+      try {
+        const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown };
+        if (message.type !== "preferences") return;
+        if (typeof message.compact === "boolean") preferences.compact = message.compact;
+        if (typeof message.hidden === "boolean") preferences.hidden = message.hidden;
+        sendState();
+      } catch { /* Ignore malformed localhost control messages. */ }
+    });
+  });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", () => { server.off("error", reject); resolve(); });
   });
   const broadcast = (state: DerivedState): void => {
-    const message = JSON.stringify({ type: "state", state });
+    const message = packet(state);
     for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message);
   };
   return {

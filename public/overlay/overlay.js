@@ -1,4 +1,5 @@
-import { drawLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
+import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
+import { rowLayout, selectVisibleLamps } from "/shared/layout.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -6,7 +7,10 @@ const status = document.querySelector("#status");
 const demo = document.querySelector("#demo");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let state = null;
+let selectedLayout = "bottom";
+let preferences = { compact: false, hidden: false };
 let animationFrame = 0;
+const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
   const ratio = Math.min(2, devicePixelRatio || 1);
@@ -16,37 +20,36 @@ function resize() {
 }
 
 function layout(items) {
-  const count = Math.max(1, items.length);
-  if (count === 1) {
-    const size = Math.max(120, Math.min(160, innerWidth * .08));
-    return [{ ...items[0], x: Math.max(105, innerWidth * .07), y: innerHeight - 82, size }];
-  }
-  const columns = count === 1 ? 1 : Math.min(12, Math.max(1, Math.ceil(Math.sqrt(count * (innerWidth / innerHeight)))));
-  const rows = Math.ceil(count / columns);
-  const cellWidth = innerWidth / columns;
-  const cellHeight = innerHeight / Math.max(1, rows);
-  const maxSize = count <= 4 ? 190 : 128;
-  const size = Math.max(42, Math.min(maxSize, Math.min(cellWidth * .68, cellHeight * .64)));
-  return items.map((item, index) => ({
-    ...item,
-    x: (index % columns + .5) * cellWidth,
-    y: (Math.floor(index / columns) + .70) * cellHeight,
-    size
-  }));
+  return rowLayout(items, Object.keys(state?.lamps ?? {}).length, innerWidth, innerHeight, selectedLayout, preferences.compact, (lamp) => generateLamp(lamp.userId).verticalOffset);
 }
 
 function render(time) {
   context.clearRect(0, 0, innerWidth, innerHeight);
+  if (previewBackground) {
+    const backdrop = context.createLinearGradient(0, 0, innerWidth, innerHeight);
+    backdrop.addColorStop(0, "#102536"); backdrop.addColorStop(.58, "#15202a"); backdrop.addColorStop(1, "#242326");
+    context.fillStyle = backdrop; context.fillRect(0, 0, innerWidth, innerHeight);
+  }
+  const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
+  const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
+  sill.addColorStop(0, "rgba(255,255,255,0)"); sill.addColorStop(.48, "rgba(255,255,255,.08)"); sill.addColorStop(.58, "rgba(255,255,255,.055)"); sill.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
+  canvas.style.opacity = preferences.hidden ? "0" : "1";
   if (state) {
     const lamps = Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt));
-    const visible = lamps.slice(0, 60).map((lamp) => ({ lamp }));
-    const overflow = lamps.length - visible.length;
-    if (overflow > 0) visible.push({ cluster: overflow });
+    const visible = selectVisibleLamps(lamps);
+    const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
+    const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
     for (const item of layout(visible)) {
       if (item.lamp) {
         const bright = state.currentStream?.litUserIds.includes(item.lamp.userId);
         const opacity = bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit);
-        drawLamp(context, item.lamp.userId, item.x, item.y, item.size * lampScale(item.lamp.lifetimeLights), opacity, reducedMotion.matches ? 0 : time);
+        const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
+        const renderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
+        drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
+          detail: item.tier === 2 ? "essential" : "full", glowScale, glowAlpha
+        });
+        if (item.tier !== 0) continue;
         const labelSize = Math.max(12, item.size * .105);
         context.font = `600 ${labelSize}px "Space Grotesk", system-ui, sans-serif`;
         context.textAlign = "center";
@@ -58,7 +61,7 @@ function render(time) {
         context.fillStyle = `rgba(246, 232, 207, ${Math.max(.52, opacity)})`;
         context.fillText(item.lamp.displayName, item.x, labelY);
       } else {
-        drawLamp(context, "lamplight-cluster", item.x, item.y, item.size * 1.08, .25, 0);
+        drawLamp(context, "lamplight-cluster", item.x, item.y, Math.min(item.size * 1.08, item.collisionCap), .25, 0, { detail: "essential", glowScale, glowAlpha });
         context.fillStyle = "rgba(246,232,207,.72)"; context.font = `700 ${item.size * .16}px system-ui, sans-serif`; context.textAlign = "center";
         context.fillText(`+${item.cluster}`, item.x, item.y + item.size * .25);
       }
@@ -74,7 +77,10 @@ function connect() {
   socket.addEventListener("open", () => { status.textContent = "LIVE DATA"; status.hidden = true; });
   socket.addEventListener("message", (message) => {
     const packet = JSON.parse(message.data);
-    if (packet.type === "state") { state = packet.state; demo.hidden = !state.demoReplay; drawOnce(); }
+    if (packet.type === "state") {
+      state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
+      preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
+    }
   });
   socket.addEventListener("close", () => { status.hidden = false; status.textContent = "RECONNECTING"; setTimeout(connect, 1000); });
 }

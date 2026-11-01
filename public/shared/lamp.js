@@ -22,76 +22,119 @@ function mulberry32(seed) {
 }
 
 export function generateLamp(userId) {
-  const random = mulberry32(xmur3(`lamplight:v1:${userId}`)());
+  const random = mulberry32(xmur3(`lamplight:v2:${userId}`)());
   const roll = random();
   const palette = roll < 0.60 ? "amber" : roll < 0.85 ? "teal" : "rose";
   const [minHue, maxHue] = palette === "amber" ? [20, 50] : palette === "teal" ? [170, 195] : [335, 355];
   return {
-    silhouette: Math.floor(random() * 5), palette, hue: minHue + random() * (maxHue - minHue),
-    saturation: 66 + random() * 18, lightness: 52 + random() * 14,
-    glassTaper: 0.72 + random() * 0.20, baseWidth: 0.78 + random() * 0.30,
-    flameLean: -0.16 + random() * 0.32, motionPhase: random() * Math.PI * 2
+    silhouette: Math.floor(random() * 5), base: Math.floor(random() * 3), glassPattern: Math.floor(random() * 4),
+    frame: Math.floor(random() * 3), finial: Math.floor(random() * 3), flame: Math.floor(random() * 3), palette,
+    hue: minHue + random() * (maxHue - minHue), saturation: 66 + random() * 18, lightness: 52 + random() * 14,
+    tilt: -6 + random() * 12, verticalOffset: -12 + random() * 24, motionPhase: random() * Math.PI * 2
   };
 }
 
-export function drawLamp(context, userId, x, y, size, brightness, time = 0) {
-  const lamp = generateLamp(userId);
-  const glow = `hsla(${lamp.hue}, ${lamp.saturation}%, ${lamp.lightness}%, ${0.12 + brightness * 0.34})`;
-  const color = `hsl(${lamp.hue}, ${lamp.saturation}%, ${lamp.lightness}%)`;
-  const dark = "rgba(4, 9, 12, .88)";
-  const flicker = Math.sin(time * 0.0022 + lamp.motionPhase) * size * 0.012 * brightness;
-  context.save();
-  context.translate(x, y);
-  context.globalAlpha = Math.max(0.18, brightness);
-
-  const ground = context.createRadialGradient(0, size * 0.12, 0, 0, size * 0.12, size * 0.48);
-  ground.addColorStop(0, `hsla(${lamp.hue}, ${lamp.saturation}%, ${lamp.lightness}%, ${0.10 + brightness * 0.16})`);
-  ground.addColorStop(0.55, "rgba(3, 8, 11, .24)");
-  ground.addColorStop(1, "rgba(3, 8, 11, 0)");
-  context.save(); context.scale(1, .24); context.fillStyle = ground;
-  context.beginPath(); context.arc(0, size * .5, size * .48, 0, Math.PI * 2); context.fill(); context.restore();
-
-  const halo = context.createRadialGradient(0, -size * 0.42, size * 0.05, 0, -size * 0.42, size * 0.72);
-  halo.addColorStop(0, glow);
-  halo.addColorStop(0.55, "rgba(3, 8, 11, .34)");
-  halo.addColorStop(1, "rgba(3, 8, 11, 0)");
-  context.fillStyle = halo;
-  context.beginPath(); context.arc(0, -size * 0.38, size * 0.74, 0, Math.PI * 2); context.fill();
-
-  context.fillStyle = dark;
-  const baseWidth = size * 0.42 * lamp.baseWidth;
+function bodyPath(context, lamp, size) {
+  const width = size * .25;
   context.beginPath();
-  if (lamp.silhouette === 0) context.roundRect(-baseWidth, -size * 0.16, baseWidth * 2, size * 0.28, size * 0.06);
-  else if (lamp.silhouette === 1) { context.moveTo(-baseWidth, size * 0.11); context.lineTo(-baseWidth * 0.78, -size * 0.17); context.lineTo(baseWidth * 0.78, -size * 0.17); context.lineTo(baseWidth, size * 0.11); }
-  else if (lamp.silhouette === 2) context.ellipse(0, -size * 0.02, baseWidth, size * 0.18, 0, 0, Math.PI * 2);
-  else if (lamp.silhouette === 3) { context.roundRect(-baseWidth, -size * 0.13, baseWidth * 2, size * 0.24, size * 0.12); context.rect(-baseWidth * 0.16, -size * 0.31, baseWidth * 0.32, size * 0.20); }
-  else { context.moveTo(-baseWidth, size * 0.11); context.quadraticCurveTo(-baseWidth * 1.08, -size * 0.12, -baseWidth * 0.55, -size * 0.2); context.lineTo(baseWidth * 0.55, -size * 0.2); context.quadraticCurveTo(baseWidth * 1.08, -size * 0.12, baseWidth, size * 0.11); }
-  context.closePath(); context.fill();
+  if (lamp.silhouette === 0) {
+    context.moveTo(0, -size * .82); context.bezierCurveTo(-width * .95, -size * .62, -width, -size * .28, -width * .82, -size * .10);
+    context.lineTo(width * .82, -size * .10); context.bezierCurveTo(width, -size * .28, width * .95, -size * .62, 0, -size * .82);
+  } else if (lamp.silhouette === 1) {
+    context.moveTo(-width * .65, -size * .76); context.lineTo(width * .65, -size * .76); context.lineTo(width, -size * .60);
+    context.lineTo(width, -size * .15); context.lineTo(width * .72, -size * .08); context.lineTo(-width * .72, -size * .08);
+    context.lineTo(-width, -size * .15); context.lineTo(-width, -size * .60);
+  } else if (lamp.silhouette === 2) {
+    context.moveTo(-width * .42, -size * .78); context.quadraticCurveTo(-width * .9, -size * .60, -width * 1.12, -size * .12);
+    context.lineTo(width * 1.12, -size * .12); context.quadraticCurveTo(width * .9, -size * .60, width * .42, -size * .78);
+  } else if (lamp.silhouette === 3) {
+    context.moveTo(-width, -size * .10); context.lineTo(-width, -size * .61); context.quadraticCurveTo(-width, -size * .78, -width * .55, -size * .78);
+    context.lineTo(width * .55, -size * .78); context.quadraticCurveTo(width, -size * .78, width, -size * .61); context.lineTo(width, -size * .10);
+  } else {
+    context.arc(0, -size * .43, size * .31, 0, Math.PI * 2);
+  }
+  context.closePath();
+}
 
-  const glassWidth = size * 0.25 * lamp.glassTaper;
-  const glassTop = -size * 0.72;
-  context.fillStyle = `hsla(${lamp.hue}, 72%, 72%, ${0.08 + brightness * 0.17})`;
-  context.strokeStyle = `hsla(${lamp.hue}, 55%, 68%, ${0.28 + brightness * 0.32})`;
-  context.lineWidth = Math.max(1.2, size * 0.018);
-  context.beginPath();
-  context.moveTo(-glassWidth, -size * 0.18); context.quadraticCurveTo(-glassWidth * 1.18, -size * 0.48, -glassWidth * 0.62, glassTop);
-  context.lineTo(glassWidth * 0.62, glassTop); context.quadraticCurveTo(glassWidth * 1.18, -size * 0.48, glassWidth, -size * 0.18);
-  context.closePath(); context.fill(); context.stroke();
-
-  context.fillStyle = color;
-  context.shadowColor = color; context.shadowBlur = size * (0.08 + brightness * 0.16);
-  context.beginPath();
-  context.moveTo(0, -size * 0.25);
-  context.bezierCurveTo(-size * 0.12, -size * 0.38, -size * 0.03, -size * 0.55 + flicker, size * lamp.flameLean, -size * 0.61 + flicker);
-  context.bezierCurveTo(size * 0.14, -size * 0.48, size * 0.12, -size * 0.34, 0, -size * 0.25);
-  context.fill();
+function drawPattern(context, lamp, size, color) {
+  if (lamp.glassPattern === 0) return;
+  context.save(); bodyPath(context, lamp, size); context.clip();
+  context.strokeStyle = color; context.fillStyle = color; context.lineWidth = Math.max(1, size * .009);
+  if (lamp.glassPattern === 1) {
+    for (let x = -size * .22; x <= size * .22; x += size * .09) { context.beginPath(); context.moveTo(x, -size * .78); context.lineTo(x, -size * .08); context.stroke(); }
+  } else if (lamp.glassPattern === 2) {
+    for (let y = -size * .70; y <= -size * .14; y += size * .12) for (let x = -size * .18; x <= size * .18; x += size * .12) {
+      context.beginPath(); context.arc(x + ((Math.round(y / (size * .12)) % 2) * size * .04), y, Math.max(1, size * .012), 0, Math.PI * 2); context.fill();
+    }
+  } else {
+    for (let offset = -size; offset <= size; offset += size * .13) {
+      context.beginPath(); context.moveTo(-size * .42, offset); context.lineTo(size * .42, offset - size * .84); context.stroke();
+      context.beginPath(); context.moveTo(-size * .42, offset - size * .84); context.lineTo(size * .42, offset); context.stroke();
+    }
+  }
   context.restore();
 }
 
-export function historicalOpacity(distance) {
-  return distance <= 0 ? 1 : distance === 1 ? 0.45 : distance === 2 ? 0.30 : 0.18;
+export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, options = {}) {
+  const essential = options.detail === "essential";
+  const glowScale = options.glowScale ?? 1;
+  const glowAlpha = options.glowAlpha ?? 1;
+  const displaySaturation = brightness < 1 ? lamp.saturation * .20 : lamp.saturation;
+  const color = `hsl(${lamp.hue}, ${displaySaturation}%, ${lamp.lightness}%)`;
+  const flicker = Math.sin(time * .0022 + lamp.motionPhase) * size * .012 * brightness;
+  context.save(); context.translate(x, y); context.globalAlpha = Math.max(.18, brightness);
+
+  const separation = context.createRadialGradient(0, -size * .42, size * .08, 0, -size * .42, size * 1.25 * glowScale);
+  separation.addColorStop(0, "rgba(2,6,8,.52)"); separation.addColorStop(.58, "rgba(2,6,8,.25)"); separation.addColorStop(1, "rgba(2,6,8,0)");
+  context.fillStyle = separation; context.beginPath(); context.arc(0, -size * .42, size * 1.25 * glowScale, 0, Math.PI * 2); context.fill();
+  const halo = context.createRadialGradient(0, -size * .43, size * .03, 0, -size * .43, size * 2.5 * glowScale);
+  const haloSaturation = brightness < 1 ? 20 : 92;
+  halo.addColorStop(0, `hsla(38,${haloSaturation}%,67%,${(.18 + brightness * .34) * glowAlpha})`); halo.addColorStop(.18, `hsla(35,${haloSaturation * .91}%,60%,${(.10 + brightness * .18) * glowAlpha})`);
+  halo.addColorStop(.48, `hsla(30,${haloSaturation * .80}%,54%,${(.025 + brightness * .055) * glowAlpha})`); halo.addColorStop(1, "rgba(24,12,4,0)");
+  context.fillStyle = halo; context.beginPath(); context.arc(0, -size * .43, size * 2.5 * glowScale, 0, Math.PI * 2); context.fill();
+
+  context.rotate((essential ? 0 : lamp.tilt) * Math.PI / 180);
+  if (lamp.base === 0) {
+    context.fillStyle = "rgba(72,42,22,.98)"; context.beginPath(); context.roundRect(-size * .27, -size * .12, size * .54, size * .18, size * .025); context.fill();
+    context.strokeStyle = "rgba(218,151,84,.62)"; context.lineWidth = Math.max(1, size * .012); context.stroke();
+  } else if (lamp.base === 1) {
+    context.strokeStyle = "rgba(62,76,78,.98)"; context.lineWidth = size * .055; context.beginPath(); context.ellipse(0, -size * .08, size * .29, size * .10, 0, 0, Math.PI * 2); context.stroke();
+  } else {
+    context.strokeStyle = "rgba(68,80,81,.98)"; context.lineWidth = Math.max(2, size * .025); context.beginPath(); context.moveTo(0, -size * .98); context.lineTo(0, -size * .78); context.arc(size * .035, -size * .75, size * .04, Math.PI, 0); context.stroke();
+  }
+
+  bodyPath(context, lamp, size);
+  context.fillStyle = `hsla(${lamp.hue},${displaySaturation}%,72%,${.32 + brightness * .18})`; context.fill();
+  bodyPath(context, lamp, size); context.strokeStyle = `hsla(${lamp.hue},${Math.min(52, displaySaturation)}%,74%,${.50 + brightness * .25})`;
+  context.lineWidth = Math.max(1.3, size * .012); context.lineJoin = "round"; context.stroke();
+  if (!essential && lamp.frame > 0) {
+    bodyPath(context, lamp, size); context.strokeStyle = `hsla(${lamp.hue},${Math.min(48, displaySaturation)}%,70%,${.42 + brightness * .34})`;
+    context.lineWidth = lamp.frame === 1 ? Math.max(1.4, size * .014) : Math.max(3, size * .034); context.lineJoin = lamp.frame === 2 ? "bevel" : "round"; context.stroke();
+    if (lamp.frame === 2) { context.fillStyle = "rgba(5,12,14,.86)"; for (const [cx, cy] of [[-.21,-.15],[.21,-.15],[-.16,-.68],[.16,-.68]]) context.fillRect(cx * size - size * .018, cy * size - size * .018, size * .036, size * .036); }
+  }
+  drawPattern(context, lamp, size, `hsla(${lamp.hue},${Math.min(58, displaySaturation)}%,76%,${.40 + brightness * .20})`);
+
+  if (!essential && lamp.finial === 1) {
+    context.strokeStyle = "rgba(8,15,17,.94)"; context.lineWidth = size * .025; context.beginPath(); context.arc(0, -size * .84, size * .075, 0, Math.PI * 2); context.stroke();
+  } else if (!essential && lamp.finial === 2) {
+    context.fillStyle = "rgba(8,15,17,.94)"; context.beginPath(); context.roundRect(-size * .09, -size * .86, size * .18, size * .075, size * .025); context.fill();
+  }
+
+  context.fillStyle = color; context.shadowColor = color; context.shadowBlur = size * (.07 + brightness * .13);
+  context.beginPath();
+  if (lamp.flame === 0) {
+    context.moveTo(0, -size * .25); context.bezierCurveTo(-size * .085, -size * .34, -size * .04, -size * .47, 0, -size * .52 + flicker); context.bezierCurveTo(size * .08, -size * .42, size * .08, -size * .32, 0, -size * .25);
+  } else if (lamp.flame === 1) {
+    context.moveTo(0, -size * .22); context.bezierCurveTo(-size * .11, -size * .36, -size * .03, -size * .58, size * .035, -size * .69 + flicker); context.bezierCurveTo(size * .13, -size * .49, size * .10, -size * .31, 0, -size * .22);
+  } else {
+    context.moveTo(0, -size * .22); context.bezierCurveTo(-size * .13, -size * .35, -size * .11, -size * .52, -size * .045, -size * .63 + flicker); context.quadraticCurveTo(0, -size * .52, size * .025, -size * .43); context.quadraticCurveTo(size * .07, -size * .58, size * .12, -size * .61 - flicker); context.bezierCurveTo(size * .15, -size * .42, size * .11, -size * .28, 0, -size * .22);
+  }
+  context.fill(); context.restore();
 }
 
-export function lampScale(lifetimeLights) {
-  return Math.min(1.32, 1 + Math.max(0, lifetimeLights - 1) * 0.025);
+export function drawLamp(context, userId, x, y, size, brightness, time = 0, options = {}) {
+  drawLampDesign(context, generateLamp(userId), x, y, size, brightness, time, options);
 }
+
+export function historicalOpacity(distance) { return distance <= 0 ? 1 : distance === 1 ? .45 : distance === 2 ? .30 : .20; }
+export function lampScale(lifetimeLights) { return Math.min(1.32, 1 + Math.max(0, lifetimeLights - 1) * .025); }

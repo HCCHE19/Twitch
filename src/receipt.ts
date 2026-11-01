@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { canonicalJson } from "./canonical.js";
 import { verifyLedger } from "./ledger.js";
+import { generateLamp } from "./lamp-generator.js";
 import type { DerivedState, LedgerEntry, PresenceReceipt, PresenceReceiptRow } from "./types.js";
 
 const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
@@ -55,14 +56,10 @@ export function verifyReceipt(receipt: PresenceReceipt, entries: LedgerEntry[]):
   }
 }
 
-function publicLampSeed(userId: string): string {
-  return sha256(`lamplight:public-lamp:v1:${userId}`);
-}
-
 export function receiptHtml(receipt: PresenceReceipt): string {
-  const publicRows = receipt.presence.map((row) => ({ displayName: row.displayName, litAt: row.litAt, streak: row.streak, lifetimeStreams: row.lifetimeStreams, lampSeed: publicLampSeed(row.userId) }));
+  const publicRows = receipt.presence.map((row) => ({ displayName: row.displayName, litAt: row.litAt, streak: row.streak, lifetimeStreams: row.lifetimeStreams, lampDesign: generateLamp(row.userId) }));
   const cards = publicRows.map((row, index) => `<article><canvas width="180" height="180" data-index="${index}"></canvas><div><h2>${escapeHtml(row.displayName)}</h2><p>Streak ${row.streak} · ${row.lifetimeStreams} stream${row.lifetimeStreams === 1 ? "" : "s"} attended</p><time>${escapeHtml(row.litAt)}</time></div></article>`).join("\n");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Presence Receipt</title><style>@font-face{font-family:Space;src:url(../../public/fonts/SpaceGrotesk-wght.woff2)}*{box-sizing:border-box}body{margin:0;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif;padding:48px}main{max-width:820px;margin:auto}header{border-bottom:1px solid #294048;padding-bottom:24px}h1{margin:0 0 8px;color:#ffc56f}article{display:flex;align-items:center;gap:22px;border-bottom:1px solid #182c32;padding:14px 0}canvas{width:120px;height:120px}h2,p{margin:4px 0}time,.seal{color:#8eaaa9;font-size:13px}</style></head><body><main><header><h1>Presence Receipt</h1><p>${escapeHtml(receipt.stream.startedAt)} — ${escapeHtml(receipt.stream.endedAt)}</p><p class="seal">${receipt.presence.length} present · sealed ${escapeHtml(receipt.sealedAt)} · ${escapeHtml(receipt.receiptHash.slice(0, 16))}…</p></header>${cards || "<p>No presences recorded.</p>"}</main><script type="module">import{drawLamp}from'../../public/shared/lamp.js';const rows=${JSON.stringify(publicRows).replace(/</gu, "\\u003c")};document.querySelectorAll('canvas').forEach((canvas)=>{const row=rows[Number(canvas.dataset.index)];const context=canvas.getContext('2d');context.scale(1.5,1.5);drawLamp(context,row.lampSeed,60,92,100,1,0)});</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Presence Receipt</title><style>@font-face{font-family:Space;src:url(../../public/fonts/SpaceGrotesk-wght.woff2)}*{box-sizing:border-box}body{margin:0;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif;padding:48px}main{max-width:820px;margin:auto}header{border-bottom:1px solid #294048;padding-bottom:24px}h1{margin:0 0 8px;color:#ffc56f}article{display:flex;align-items:center;gap:22px;border-bottom:1px solid #182c32;padding:14px 0}canvas{width:120px;height:120px}h2,p{margin:4px 0}time,.seal{color:#8eaaa9;font-size:13px}</style></head><body><main><header><h1>Presence Receipt</h1><p>${escapeHtml(receipt.stream.startedAt)} — ${escapeHtml(receipt.stream.endedAt)}</p><p class="seal">${receipt.presence.length} present · sealed ${escapeHtml(receipt.sealedAt)} · ${escapeHtml(receipt.receiptHash.slice(0, 16))}…</p></header>${cards || "<p>No presences recorded.</p>"}</main><script type="module">import{drawLampDesign}from'../../public/shared/lamp.js';const rows=${JSON.stringify(publicRows).replace(/</gu, "\\u003c")};document.querySelectorAll('canvas').forEach((canvas)=>{const row=rows[Number(canvas.dataset.index)];const context=canvas.getContext('2d');context.scale(1.5,1.5);drawLampDesign(context,row.lampDesign,60,92,100,1,0)});</script></body></html>`;
 }
 
 export async function writeReceiptFiles(receipt: PresenceReceipt, directory = "data/receipts"): Promise<{ jsonPath: string; htmlPath: string }> {

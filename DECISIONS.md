@@ -35,3 +35,9 @@
 **Decided:** The real-channel test must remain generic and brief, with VODs and clips disabled, and must prove a real `!lamp` from a second account before receipt work proceeds. Receipt JSON stays private and may contain Twitch user IDs; receipt HTML exposes names only and draws every attendee's deterministic lamp. The ledger, not `state.json`, remains authoritative.
 
 **Action:** Confirmed the full `stream.online` → real `channel.chat.message` → visible OBS lamp → `stream.offline` path, then committed Milestone 3. Added automatic receipt sealing on `stream.offline`, a manual-finalize fallback, receipt hashing anchored to the verified event chain, a verification CLI, privacy tests, and HTML that reuses the repository's Canvas lamp module.
+
+## 2026-11-02 — Locked lamp wall
+
+**Decided:** Freeze the accepted five-lamp design and single-band composition. Bottom/top baselines are 88%/12%; lamps begin at x=80 with 150px full-size spacing and only ±12px seeded vertical jitter. Density tiers are full-size with labels through 12, collision-clamped 70% without labels through 30, and collision-clamped 50% through 60; further viewers become one counted cluster. Dim lamps are desaturated to 20% and use .45/.30/.20 opacity. Total glow is capped as density rises. Five silhouettes, three bases, four patterns, three frames, three finials, and three flames are seeded from user ID. No further visual changes unless something breaks.
+
+**Action:** Implemented and tested the locked row, density/glow caps, exact 60-plus-cluster limit, compact/hide local controls, shared overlay/receipt generator, browser-only `?bg=1`, and generated 5/30/200 demos. The user approved the final 30- and 200-person OBS views.

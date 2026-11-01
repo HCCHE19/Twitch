@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateLamp } from "../src/lamp-generator.js";
+import { generateLamp, renderedLampSignature } from "../src/lamp-generator.js";
 
 describe("lamp generator", () => {
   it("is deterministic and varies across IDs", () => {
@@ -23,5 +23,25 @@ describe("lamp generator", () => {
     expect(counts.amber / 10_000).toBeCloseTo(0.60, 1);
     expect(counts.teal / 10_000).toBeCloseTo(0.25, 1);
     expect(counts.rose / 10_000).toBeCloseTo(0.15, 1);
+  });
+
+  it("keeps full rendered-signature collisions below two percent across 1,000 ids", () => {
+    const signatures = Array.from({ length: 1_000 }, (_, index) => renderedLampSignature(generateLamp(`random-id-${index}`)));
+    const counts = new Map<string, number>();
+    for (const signature of signatures) counts.set(signature, (counts.get(signature) ?? 0) + 1);
+    const colliding = signatures.filter((signature) => (counts.get(signature) ?? 0) > 1).length;
+    expect(colliding / signatures.length).toBeLessThan(0.02);
+  });
+
+  it("covers at least four silhouettes and every hue band across 200 ids", () => {
+    const designs = Array.from({ length: 200 }, (_, index) => generateLamp(`coverage-id-${index}`));
+    expect(new Set(designs.map((design) => design.silhouette)).size).toBeGreaterThanOrEqual(4);
+    expect(new Set(designs.map((design) => design.palette))).toEqual(new Set(["amber", "teal", "rose"]));
+  });
+
+  it("matches the plain-JS generator reused by overlay and receipt", async () => {
+    // @ts-expect-error The browser drawing module is intentionally framework-free JavaScript.
+    const browser = await import("../public/shared/lamp.js") as { generateLamp: (id: string) => ReturnType<typeof generateLamp> };
+    for (const id of ["42", "friend-a", "friend-b"]) expect(browser.generateLamp(id)).toEqual(generateLamp(id));
   });
 });

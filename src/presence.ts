@@ -80,7 +80,7 @@ export function historicalOpacity(streamsSinceLit: number): number {
   if (streamsSinceLit <= 0) return 1;
   if (streamsSinceLit === 1) return 0.45;
   if (streamsSinceLit === 2) return 0.30;
-  return 0.18;
+  return 0.20;
 }
 
 export function lampScale(lifetimeLights: number): number {

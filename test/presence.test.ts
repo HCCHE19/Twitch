@@ -55,6 +55,6 @@ describe("presence rules", () => {
   });
 
   it("uses the specified historical opacity floor", () => {
-    expect([0, 1, 2, 3, 20].map(historicalOpacity)).toEqual([1, 0.45, 0.3, 0.18, 0.18]);
+    expect([0, 1, 2, 3, 20].map(historicalOpacity)).toEqual([1, 0.45, 0.3, 0.20, 0.20]);
   });
 });

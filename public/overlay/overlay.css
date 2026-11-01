@@ -8,7 +8,7 @@
 :root { color-scheme: dark; font-family: "Space Grotesk", system-ui, sans-serif; }
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
-#lamps { display: block; width: 100%; height: 100%; }
+#lamps { display: block; width: 100%; height: 100%; opacity: 1; transition: opacity 320ms ease; }
 #status, #demo {
   position: fixed; top: 18px; padding: 7px 11px; border: 1px solid rgba(232, 178, 91, .36);
   border-radius: 999px; background: rgba(4, 9, 12, .78); color: #edc985;
