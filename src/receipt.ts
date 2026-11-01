@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { canonicalJson } from "./canonical.js";
 import { verifyLedger } from "./ledger.js";
 import { generateLamp } from "./lamp-generator.js";
-import type { DerivedState, LedgerEntry, PresenceReceipt, PresenceReceiptRow } from "./types.js";
+import type { DerivedState, LedgerEntry, PresenceReceipt, PresenceReceiptRow, ViewerSample } from "./types.js";
 
 const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/gu, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
@@ -26,10 +26,24 @@ export function createReceipt(state: DerivedState, entries: LedgerEntry[], ended
     if (!source) throw new Error(`Missing source message for ${lamp.displayName}`);
     return { userId, displayName: lamp.displayName, firstSeenAt: lamp.firstSeenAt, litAt: lamp.lastLitAt, streak: lamp.streak, lifetimeStreams: lamp.attendedStreamIds.length, sourceMessageId: source.messageId };
   }).sort((left, right) => left.litAt.localeCompare(right.litAt));
+  const samples: ViewerSample[] = slice.filter((entry) => entry.subscriptionType === "lamplight.viewer.sample").flatMap((entry) => {
+    const event = entry.payload.event as Record<string, unknown> | undefined;
+    if (String(event?.stream_id ?? "") !== stream.id) return [];
+    const twitchViewers = Number(event?.viewer_count);
+    const litLamps = Number(event?.lit_lamps);
+    if (!Number.isFinite(twitchViewers) || !Number.isFinite(litLamps)) return [];
+    return [{ sampledAt: entry.messageTimestamp, twitchViewers, litLamps }];
+  });
+  const peakTwitchViewers = Math.max(0, ...samples.map((sample) => sample.twitchViewers));
+  const peakLitLamps = Math.max(0, ...samples.map((sample) => sample.litLamps));
+  const summary = samples.length
+    ? `Twitch reported ${peakTwitchViewers} viewer${peakTwitchViewers === 1 ? "" : "s"} at peak; ${peakLitLamps} lit a lamp.`
+    : "No viewer-count samples were available for this stream.";
   const withoutHash = {
     schemaVersion: 1 as const,
     stream: { id: stream.id, startedAt: stream.startedAt, endedAt, finalization },
     presence: rows,
+    attendance: { samples, peakTwitchViewers, peakLitLamps, summary },
     ledger: { startPrevHash: entries[start]!.prevHash, endHash: entries.at(-1)?.hash ?? "", eventCount: slice.length },
     sealedAt
   };
@@ -60,7 +74,8 @@ export function receiptHtml(receipt: PresenceReceipt): string {
   const publicRows = receipt.presence.map((row) => ({ displayName: row.displayName, litAt: row.litAt, streak: row.streak, lifetimeStreams: row.lifetimeStreams, lampDesign: generateLamp(row.userId) }));
   const localTime = (value: string): string => `<time class="local-time" datetime="${escapeHtml(value)}" title="${escapeHtml(value)}">${escapeHtml(value)}</time>`;
   const cards = publicRows.map((row, index) => `<article><canvas width="180" height="180" data-index="${index}"></canvas><div><h2>${escapeHtml(row.displayName)}</h2><p>Streak ${row.streak} · ${row.lifetimeStreams} stream${row.lifetimeStreams === 1 ? "" : "s"} attended</p><p class="lit-time">Lit at ${localTime(row.litAt)}</p></div></article>`).join("\n");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Presence Receipt</title><style>@font-face{font-family:Space;src:url(/fonts/SpaceGrotesk-wght.woff2)}*{box-sizing:border-box}body{margin:0;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif;padding:48px}main{max-width:820px;margin:auto}header{border-bottom:1px solid #294048;padding-bottom:24px}h1{margin:0 0 12px;color:#ffc56f}.stream-time{display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;margin:10px 0 14px}.stream-time span{color:#b8cbc9}article{display:flex;align-items:center;gap:22px;border-bottom:1px solid #182c32;padding:14px 0}canvas{width:120px;height:120px}h2,p{margin:4px 0}time,.seal,.lit-time{color:#8eaaa9;font-size:13px}</style></head><body><main><header><h1>Presence Receipt</h1><div class="stream-time"><span>Started</span>${localTime(receipt.stream.startedAt)}<span>Ended</span>${localTime(receipt.stream.endedAt)}</div><p class="seal">${receipt.presence.length} present · sealed ${localTime(receipt.sealedAt)} · Public view · names only</p></header>${cards || "<p>No presences recorded.</p>"}</main><script type="module">import{drawLampDesign}from'/shared/lamp.js';const rows=${JSON.stringify(publicRows).replace(/</gu, "\\u003c")};const formatter=new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'});document.querySelectorAll('.local-time').forEach((element)=>{const date=new Date(element.dateTime);if(!Number.isNaN(date.valueOf()))element.textContent=formatter.format(date)});document.querySelectorAll('canvas').forEach((canvas)=>{const row=rows[Number(canvas.dataset.index)];const context=canvas.getContext('2d');context.scale(1.5,1.5);drawLampDesign(context,row.lampDesign,60,92,100,1,0)});</script></body></html>`;
+  const comparison = escapeHtml(receipt.attendance.summary);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Presence Receipt</title><style>@font-face{font-family:Space;src:url(/fonts/SpaceGrotesk-wght.woff2)}*{box-sizing:border-box}body{margin:0;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif;padding:48px}main{max-width:820px;margin:auto}header{border-bottom:1px solid #294048;padding-bottom:24px}h1{margin:0 0 12px;color:#ffc56f}.stream-time{display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;margin:10px 0 14px}.stream-time span{color:#b8cbc9}.comparison{margin:18px 0;padding:14px 16px;border:1px solid #294048;border-radius:10px;background:#0b181d}.comparison strong{display:block;color:#b8cbc9;font-size:12px;letter-spacing:.08em;text-transform:uppercase}.comparison p{margin-top:7px}article{display:flex;align-items:center;gap:22px;border-bottom:1px solid #182c32;padding:14px 0}canvas{width:120px;height:120px}h2,p{margin:4px 0}time,.seal,.lit-time{color:#8eaaa9;font-size:13px}</style></head><body><main><header><h1>Presence Receipt</h1><div class="stream-time"><span>Started</span>${localTime(receipt.stream.startedAt)}<span>Ended</span>${localTime(receipt.stream.endedAt)}</div><p class="seal">${receipt.presence.length} present · sealed ${localTime(receipt.sealedAt)} · Public view · names only</p></header><section class="comparison"><strong>Declared versus verified presence</strong><p>${comparison}</p></section>${cards || "<p>No presences recorded.</p>"}</main><script type="module">import{drawLampDesign}from'/shared/lamp.js';const rows=${JSON.stringify(publicRows).replace(/</gu, "\\u003c")};const formatter=new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'});document.querySelectorAll('.local-time').forEach((element)=>{const date=new Date(element.dateTime);if(!Number.isNaN(date.valueOf()))element.textContent=formatter.format(date)});document.querySelectorAll('canvas').forEach((canvas)=>{const row=rows[Number(canvas.dataset.index)];const context=canvas.getContext('2d');context.scale(1.5,1.5);drawLampDesign(context,row.lampDesign,60,92,100,1,0)});</script></body></html>`;
 }
 
 export async function writeReceiptFiles(receipt: PresenceReceipt, directory = "receipts"): Promise<{ jsonPath: string; htmlPath: string }> {

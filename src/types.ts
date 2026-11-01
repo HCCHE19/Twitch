@@ -62,10 +62,24 @@ export interface PresenceReceiptRow {
   sourceMessageId: string;
 }
 
+export interface ViewerSample {
+  sampledAt: string;
+  twitchViewers: number;
+  litLamps: number;
+}
+
+export interface AttendanceComparison {
+  samples: ViewerSample[];
+  peakTwitchViewers: number;
+  peakLitLamps: number;
+  summary: string;
+}
+
 export interface PresenceReceipt {
   schemaVersion: 1;
   stream: { id: string; startedAt: string; endedAt: string; finalization: "eventsub" | "manual" };
   presence: PresenceReceiptRow[];
+  attendance: AttendanceComparison;
   ledger: { startPrevHash: string; endHash: string; eventCount: number };
   sealedAt: string;
   receiptHash: string;

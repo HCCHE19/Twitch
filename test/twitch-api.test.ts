@@ -20,8 +20,8 @@ describe("Twitch API", () => {
   });
 
   it("recovers the current live stream by login", async () => {
-    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: "stream-7", started_at: "2026-11-01T08:00:00Z" }] })));
-    await expect(getLiveStream(config, fetcher)).resolves.toEqual({ id: "stream-7", startedAt: "2026-11-01T08:00:00Z" });
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: [{ id: "stream-7", started_at: "2026-11-01T08:00:00Z", viewer_count: 12 }] })));
+    await expect(getLiveStream(config, fetcher)).resolves.toEqual({ id: "stream-7", startedAt: "2026-11-01T08:00:00Z", viewerCount: 12 });
     expect(String(fetcher.mock.calls[0]?.[0])).toContain("user_login=lamplight");
   });
 

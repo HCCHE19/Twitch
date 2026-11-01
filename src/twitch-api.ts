@@ -14,6 +14,7 @@ export interface ValidatedIdentity {
 export interface LiveStream {
   id: string;
   startedAt: string;
+  viewerCount: number;
 }
 
 async function jsonResponse<T>(response: Response, context: string): Promise<T> {
@@ -53,9 +54,9 @@ export async function getLiveStream(config: Config, fetcher = fetch): Promise<Li
   const response = await fetcher(url, {
     headers: { Authorization: `Bearer ${config.accessToken}`, "Client-Id": config.clientId }
   });
-  const body = await jsonResponse<{ data: Array<{ id: string; started_at: string }> }>(response, "Get Streams");
+  const body = await jsonResponse<{ data: Array<{ id: string; started_at: string; viewer_count: number }> }>(response, "Get Streams");
   const stream = body.data[0];
-  return stream ? { id: stream.id, startedAt: stream.started_at } : null;
+  return stream ? { id: stream.id, startedAt: stream.started_at, viewerCount: stream.viewer_count } : null;
 }
 
 // https://dev.twitch.tv/docs/api/reference/#create-eventsub-subscription

@@ -57,3 +57,9 @@
 **Decided:** The public HTML must not display credential-like identifiers that a viewer could mistake for Twitch user IDs or secrets.
 
 **Action:** Removed the receipt-hash prefix from public HTML and replaced it with `Public view · names only`. The full receipt hash, Twitch user IDs, and source-event identifiers remain only in the gitignored local JSON used by the verifier; OAuth tokens and client secrets are never written to either receipt format.
+
+## 2026-11-02 — Viewer-count sampling and declared-versus-verified receipt
+
+**Decided:** While live, sample Twitch `GET /streams` immediately on live detection and every 60 seconds. Append each successful sample as its own hash-chained `lamplight.viewer.sample` event containing the stream ID, Twitch `viewer_count`, and the count of lamps lit at that exact moment. The receipt includes every sample, the peak of each series, and a plain-English comparison. A failed or stale API response is logged and skipped; it must never stop EventSub handling or write a misleading zero. Ledger writes are serialized so a timer and EventSub notification cannot fork the hash chain.
+
+**Action:** Added the sampler, internal event, receipt comparison, HTML line, API parsing, concurrency guard, and tests for the 60-second live-only schedule, non-overlap, event shape, peaks, summary, verification, and privacy.
