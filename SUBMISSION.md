@@ -15,7 +15,7 @@ Use only the Lamplight overlay, Twitch, OBS, Terminal, and this repository. No m
 3. **0:40–1:15 — Real Twitch proof.** Start a short real stream. From the second account send `!lamp`. Show the lamp brighten and the display name appear. Say: “This is a real Twitch EventSub chat message, not the demo replay.”
 4. **1:15–1:35 — Persistence.** Briefly restart the local service or explain the prior lamp is loaded from the rebuilt state. Say: “The event log is the ledger; the snapshot is derived from it.”
 5. **1:35–2:00 — Receipt.** Stop the stream, show the `stream.offline` terminal line and the generated name-only receipt HTML with a lamp beside the name.
-6. **2:00–2:15 — Verification.** Run `npm run verify -- data/receipts/<stream-id>.json` and show `valid receipt`.
+6. **2:00–2:15 — Verification.** Run `npm run verify -- receipts/<stream-id>.json` and show `valid receipt`.
 7. **2:15–2:35 — Codex workflow and close.** Show `SPEC.md`, `DECISIONS.md`, tests passing, and the git milestone commits. Say: “I made the product decisions and tested it on my channel. Codex turned the specification into the EventSub client, deterministic canvas art, ledger, receipts, tests, and documentation in this single session.”
 
 ## Recording checklist
