@@ -1,0 +1,31 @@
+# Decisions
+
+## 2026-11-01 — Product and delivery constraints
+
+**Decided:** Build Lamplight as a solo TwitchCon hackathon entry: silent viewers can signal presence with one emote, `!lamp`, or `!lurk`; persistent deterministic lamps brighten per stream, accrue streak/size, and produce hash-chained Presence Receipts. No rankings, chat output, runtime AI, Extensions, recaps, clips, summaries, third-party visual/audio assets, or prohibited lookalikes. One OBS browser source; minimal Node/TypeScript/`ws`/Vitest stack. Work milestone-by-milestone with tests, secret scan, commit, and status. Stop loss at Nov 2 12:00 Sydney; target submission Nov 3 06:30 Sydney.
+
+**Action:** Specified a single local TypeScript service, Canvas 2D overlay, JSON/JSONL persistence, minimum Twitch scope and EventSub set, receipt verification, tests, fallbacks, and optional features gated behind real core proof. No implementation begins until the user says `go`.
+
+## 2026-11-01 — Originality and evidence
+
+**Decided:** All lamp art/motion is code-generated; palette is amber, teal, and rose on near-black halos; one OFL Google Font with fallback is allowed. README must use only the supplied research/press evidence, label Tubefilter as press, avoid the unsourced “80%” claim, admit there is no evidence yet that lightweight presence improves retention, and include the exact required artwork sentence.
+
+**Action:** Reserved the README work for milestone 4 and proposed locally vendored Space Grotesk plus licence as the sole non-code design asset.
+
+## 2026-11-01 — Risk-first milestone order and Twitch setup
+
+**Decided:** Prove the broadcaster token and real EventSub WebSocket tonight before domain or overlay work. Milestone 1 subscribes to `channel.chat.message`, `stream.online`, and `stream.offline`, starting from Twitch's Example Chatbot guide, and prints a real channel message. On boot, query `GET /streams` by broadcaster login to recover live state.
+
+**Action:** Reordered the build. The broadcaster user token requests only `user:read:chat`; the stream query and online/offline subscriptions add no scopes. EventSub integration and diagnostics are now the first implementation.
+
+## 2026-11-01 — Persistence, privacy, rendering, and demo
+
+**Decided:** `events.jsonl` is the ledger and `state.json` is derived via `npm run rebuild`. Private receipt JSON may retain IDs; public receipt HTML and committed samples show names only. Reuse lamp drawing in receipt HTML. Use five silhouettes and seeded amber H20–50 / teal H170–195 / rose H335–355 at about 60/25/15, dark halos, reduced motion, lifetime-attendance size, and retained streak. Fade prior lamps .45/.30/.18; show at most 60 plus a counted cluster. Ignore broadcaster and common bots from config. Add adjustable `npm run demo` with a visible `DEMO REPLAY` tag; submission video remains real Twitch.
+
+**Action:** Added these as explicit architecture, data, privacy, generator, overlay, configuration, and test requirements. Space Grotesk and its OFL licence are the only bundled asset, so README wording will say so accurately.
+
+## 2026-11-01 — OAuth callback port
+
+**Decided:** Use `http://localhost:3939` instead of port 3000 for the Twitch CLI OAuth callback because port 3000 is occupied. Nothing else changes.
+
+**Action:** Updated `.env.example`; README setup will register 3939 as the first redirect URL and mint the token with `-p 3939`. This affects token creation only, not Lamplight's runtime server or OBS URL.
