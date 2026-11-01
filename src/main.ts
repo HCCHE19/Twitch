@@ -1,6 +1,7 @@
 import { loadConfig, loadIgnoredUsers } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
+import { startOverlayServer } from "./overlay-server.js";
 import { reduceEnvelope } from "./presence.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 
@@ -29,6 +30,8 @@ async function main(): Promise<void> {
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
+  const overlay = await startOverlayServer(() => state);
+  console.log("[overlay] http://localhost:8787/overlay/");
 
   const client = new EventSubClient({
     config,
@@ -39,14 +42,15 @@ async function main(): Promise<void> {
       reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
       state.lastHash = entry.hash;
       await writeState("data/state.json", state);
+      overlay.broadcast(state);
     },
     onChat: (displayName, text) => console.log(`[chat] ${displayName}: ${text}`),
     onStream: (type, event) => console.log(`[stream] ${type}: ${JSON.stringify(event)}`)
   });
   client.start();
-  const stop = (): void => { client.stop(); process.exitCode = 0; };
-  process.once("SIGINT", stop);
-  process.once("SIGTERM", stop);
+  const stop = async (): Promise<void> => { client.stop(); await overlay.close(); process.exitCode = 0; };
+  process.once("SIGINT", () => void stop());
+  process.once("SIGTERM", () => void stop());
 }
 
 main().catch((error: unknown) => {

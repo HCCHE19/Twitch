@@ -35,6 +35,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   const event = envelope.payload.event ?? {};
 
   if (type === "stream.online" || type === "lamplight.stream.recovered") {
+    for (const lamp of Object.values(state.lamps)) lamp.streamsSinceLit += 1;
     const id = String(event.id ?? `recovered-${envelope.metadata.message_timestamp}`);
     state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
     return state;

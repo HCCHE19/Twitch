@@ -1,0 +1,19 @@
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/SpaceGrotesk-wght.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+:root { color-scheme: dark; font-family: "Space Grotesk", system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+#lamps { display: block; width: 100%; height: 100%; }
+#status, #demo {
+  position: fixed; top: 18px; padding: 7px 11px; border: 1px solid rgba(232, 178, 91, .36);
+  border-radius: 999px; background: rgba(4, 9, 12, .78); color: #edc985;
+  font: 600 12px/1 "Space Grotesk", system-ui, sans-serif; letter-spacing: .13em;
+}
+#status { right: 18px; }
+#demo { left: 18px; color: #66d8cc; border-color: rgba(66, 205, 191, .42); }
+@media (prefers-reduced-motion: reduce) { #lamps { scroll-behavior: auto; } }
