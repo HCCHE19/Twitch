@@ -51,3 +51,22 @@ export interface DerivedState {
   lamps: Record<string, LampState>;
   demoReplay: boolean;
 }
+
+export interface PresenceReceiptRow {
+  userId: string;
+  displayName: string;
+  firstSeenAt: string;
+  litAt: string;
+  streak: number;
+  lifetimeStreams: number;
+  sourceMessageId: string;
+}
+
+export interface PresenceReceipt {
+  schemaVersion: 1;
+  stream: { id: string; startedAt: string; endedAt: string; finalization: "eventsub" | "manual" };
+  presence: PresenceReceiptRow[];
+  ledger: { startPrevHash: string; endHash: string; eventCount: number };
+  sealedAt: string;
+  receiptHash: string;
+}

@@ -29,3 +29,9 @@
 **Decided:** Use `http://localhost:3939` instead of port 3000 for the Twitch CLI OAuth callback because port 3000 is occupied. Nothing else changes.
 
 **Action:** Updated `.env.example`; README setup will register 3939 as the first redirect URL and mint the token with `-p 3939`. This affects token creation only, not Lamplight's runtime server or OBS URL.
+
+## 2026-11-02 — Real Twitch proof and Presence Receipts
+
+**Decided:** The real-channel test must remain generic and brief, with VODs and clips disabled, and must prove a real `!lamp` from a second account before receipt work proceeds. Receipt JSON stays private and may contain Twitch user IDs; receipt HTML exposes names only and draws every attendee's deterministic lamp. The ledger, not `state.json`, remains authoritative.
+
+**Action:** Confirmed the full `stream.online` → real `channel.chat.message` → visible OBS lamp → `stream.offline` path, then committed Milestone 3. Added automatic receipt sealing on `stream.offline`, a manual-finalize fallback, receipt hashing anchored to the verified event chain, a verification CLI, privacy tests, and HTML that reuses the repository's Canvas lamp module.

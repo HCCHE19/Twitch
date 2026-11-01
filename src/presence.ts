@@ -40,7 +40,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
     return state;
   }
-  if (type === "stream.offline") {
+  if (type === "stream.offline" || type === "lamplight.stream.finalized") {
     if (!state.currentStream) return state;
     const lit = new Set(state.currentStream.litUserIds);
     for (const lamp of Object.values(state.lamps)) {

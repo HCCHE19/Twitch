@@ -3,6 +3,7 @@ import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
 import { reduceEnvelope } from "./presence.js";
+import { createReceipt, writeReceiptFiles } from "./receipt.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 
 async function main(): Promise<void> {
@@ -39,8 +40,15 @@ async function main(): Promise<void> {
     onReady: () => console.log("[ready] send a message in your Twitch channel; Ctrl+C stops Lamplight"),
     onEnvelope: async (envelope) => {
       const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
+      const allEntries = [...entries, entry];
+      if (envelope.metadata.subscription_type === "stream.offline" && state.currentStream) {
+        const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp);
+        const paths = await writeReceiptFiles(receipt);
+        console.log(`[receipt] sealed ${paths.jsonPath}; public view ${paths.htmlPath}`);
+      }
       reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
       state.lastHash = entry.hash;
+      entries.push(entry);
       await writeState("data/state.json", state);
       overlay.broadcast(state);
     },
