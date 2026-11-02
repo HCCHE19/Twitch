@@ -1,11 +1,13 @@
 export function igniteFrame(litAt,now=Date.now(),reducedMotion=false,level="normal"){
-  const age=now-Date.parse(litAt);if(age<0||age>=1000)return {active:false,yOffset:0,bounce:0,bloom:0,ripple:0,nudge:0};
-  if(reducedMotion)return {active:true,yOffset:0,bounce:0,bloom:age<500?.32:0,ripple:0,nudge:0};
-  if(level==="quiet")return {active:true,yOffset:0,bounce:0,bloom:0,ripple:Math.min(1,age/800),nudge:0};
-  const landing=520,drop=Math.min(1,age/landing),ease=1-(1-drop)**3;
-  const yOffset=age<landing?-0.48*(1-ease):-.075*Math.sin(Math.PI*Math.min(1,(age-landing)/330))*(1-(age-landing)/480);
-  const after=Math.max(0,age-landing),bloom=after<360?Math.sin(Math.PI*after/360):0,ripple=after<480?after/480:1,nudge=after<420?Math.sin(Math.PI*after/420):0;
-  return {active:true,yOffset,bounce:age>=landing&&age<850?1:0,bloom,ripple,nudge};
+  const age=now-Date.parse(litAt);if(age<0||age>=1000)return {active:false,yOffset:0,scaleY:1,bloom:0,ripple:0,nudge:0};
+  if(reducedMotion)return {active:true,yOffset:0,scaleY:1,bloom:age<500?.38:0,ripple:0,nudge:0};
+  if(level==="quiet")return {active:true,yOffset:0,scaleY:1,bloom:0,ripple:Math.min(1,age/800),nudge:0};
+  const landing=350,fall=Math.min(1,age/landing),easeIn=fall*fall;
+  const after=Math.max(0,age-landing),bounceAge=Math.max(0,after-130),bounce=bounceAge<260?Math.sin(Math.PI*bounceAge/260)*(1-bounceAge/320):0;
+  const yOffset=age<landing?-1.05*(1-easeIn):-.045*bounce;
+  const scaleY=after<190?1-.075*Math.sin(Math.PI*after/190):1;
+  const bloom=after<460?Math.sin(Math.PI*Math.min(1,after/460)):0,ripple=after<540?after/540:1,nudge=after<430?Math.sin(Math.PI*after/430):0;
+  return {active:true,yOffset,scaleY,bloom,ripple,nudge};
 }
 
 export function fragmentMomentFrame(earnedAt,now=Date.now(),reducedMotion=false){

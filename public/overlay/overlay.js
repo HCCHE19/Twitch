@@ -180,15 +180,15 @@ function render(time) {
         const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         const ignite = igniteFrames.get(item.lamp.userId); const renderY = item.y + (ignite?.yOffset ?? 0) * renderedSize;
         if (ignite?.ripple > 0 && !reducedMotion.matches) {
-          context.save(); bandClip(); context.strokeStyle = `rgba(246,211,151,${(1 - ignite.ripple) * .28})`; context.lineWidth = 1.2;
+          context.save(); bandClip(); context.strokeStyle = `rgba(246,211,151,${(1 - ignite.ripple) * .44})`; context.lineWidth = 1.8;
           context.beginPath(); context.ellipse(item.x, baseline, renderedSize * (.25 + ignite.ripple * 1.25), 5 + ignite.ripple * 9, 0, 0, Math.PI * 2); context.stroke(); context.restore();
         }
         drawLamp(context, item.lamp.userId, item.x, renderY, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.bloom ?? 0) * .35), glowAlpha, extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0)
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.active ? .18 : 0) + (ignite?.bloom ?? 0) * .55), glowAlpha: Math.min(1, glowAlpha * (1 + (ignite?.active ? .22 : 0) + (ignite?.bloom ?? 0) * .5)), extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0), scaleY: ignite?.scaleY ?? 1
         });
         if (ignite?.bloom > 0) {
           const wickY = renderY - renderedSize * .47, bloom = context.createRadialGradient(item.x, wickY, 0, item.x, wickY, renderedSize * .42);
-          bloom.addColorStop(0, `rgba(255,242,205,${ignite.bloom * .42})`); bloom.addColorStop(.3, `rgba(245,195,105,${ignite.bloom * .16})`); bloom.addColorStop(1, "rgba(245,195,105,0)");context.fillStyle=bloom;context.beginPath();context.arc(item.x,wickY,renderedSize*.42,0,Math.PI*2);context.fill();
+          bloom.addColorStop(0, `rgba(255,246,218,${ignite.bloom * .68})`); bloom.addColorStop(.26, `rgba(247,204,119,${ignite.bloom * .28})`); bloom.addColorStop(1, "rgba(245,195,105,0)");context.fillStyle=bloom;context.beginPath();context.arc(item.x,wickY,renderedSize*.52,0,Math.PI*2);context.fill();
         }
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);

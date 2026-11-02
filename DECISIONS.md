@@ -207,3 +207,9 @@
 **Decided:** `MOMENTS=normal` is the validated default; `quiet` retains only the ignite ripple and panel effects, and `big` enlarges only the rare completion area. Never use frame-edge flashes or repeated flashes above two per second. Reduced-motion mode removes spatial movement in favour of brief low-intensity emphasis. Keep per-frame work bounded for the existing 60-lamp render cap.
 
 **Action:** Added pure animation timelines, renderer integration, shared panel settling, arrival/ripple/neighbor effects, completion reveal/shrink, reduced-motion fallbacks, configuration validation, and tests for timing, level caps, quiet behavior, and defaults. Added `--moment ignite|fragment|complete` demo replays with current-time event shifting and a configurable start delay.
+
+## 2026-11-02 — Ignite visibility correction
+
+**Decided:** Preserve the shared real/replay trigger path through each lamp's reducer-derived `lastLitAt`; the replay was not bypassing moments. Make arrival unmistakable: begin 1.05 lamp-heights above the sill, use a 350ms ease-in fall, squash vertically by 7.5% on landing, rebound slightly, and start bloom/ripple at contact. Give every fresh lamp a temporary glow lift so seeded pastel/complement flame colours cannot read as dim during arrival.
+
+**Action:** Re-timed and strengthened the ignite renderer, added base-anchored vertical squash support to the lamp renderer, increased the sill-ring and wick-bloom legibility, and added an integration test proving replayed and real chat events produce the same active ignite timestamp.

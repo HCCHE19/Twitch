@@ -85,7 +85,7 @@ export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, 
   const flameLightness = lamp.flameColour === "gold" ? 67 : lamp.flameColour === "white" ? 94 : 70;
   const flameColor = `hsl(${flameHue}, ${brightness < 1 ? flameSaturation * .20 : flameSaturation}%, ${flameLightness}%)`;
   const flicker = Math.sin(time * .0022 + lamp.motionPhase) * size * .012 * brightness;
-  context.save(); context.translate(x, y); context.globalAlpha = Math.max(.18, brightness);
+  context.save(); context.translate(x, y); context.globalAlpha = Math.max(.18, brightness); context.scale(1, options.scaleY ?? 1);
 
   const separation = context.createRadialGradient(0, -size * .42, size * .08, 0, -size * .42, size * 1.25 * glowScale);
   separation.addColorStop(0, "rgba(2,6,8,.52)"); separation.addColorStop(.58, "rgba(2,6,8,.25)"); separation.addColorStop(1, "rgba(2,6,8,0)");
