@@ -3,7 +3,7 @@ import { loadMomentLevel, loadOverlayLayout } from "./config.js";
 import { createFlareEnvelope, emptyState, reduceEnvelope } from "./presence.js";
 import { startOverlayServer } from "./overlay-server.js";
 import type { EventSubEnvelope } from "./types.js";
-import { momentDemo, nightDemo } from "./demo-events.js";
+import { momentDemo, nightDemo, retimeDemoEnvelope } from "./demo-events.js";
 import { applyThreadCommand, applyThreadReunion } from "./threads.js";
 import { applyPromiseCommand } from "./promises.js";
 
@@ -70,7 +70,7 @@ for (const envelope of envelopes) {
     const delay = Math.min(night ? 10_000 : 3_000, Math.max(0, currentTime - previousTime) / speed);
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
-  const replayEnvelope: EventSubEnvelope = { ...envelope, metadata: { ...envelope.metadata, message_timestamp: new Date(replayStart + (currentTime - sourceStart) / speed).toISOString() } };
+  const replayEnvelope = retimeDemoEnvelope(envelope, replayStart, sourceStart, speed);
   const flare = night ? createFlareEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" }) : null;
   const before = new Set(state.currentStream?.litUserIds ?? []);
   reduceEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" });

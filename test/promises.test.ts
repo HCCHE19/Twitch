@@ -7,7 +7,7 @@ import type { EventSubEnvelope, LedgerEntry } from "../src/types.js";
 // @ts-expect-error Browser helper is intentionally plain JavaScript.
 import { openingCardFrame } from "../public/shared/memory.js";
 // @ts-expect-error Browser helper is intentionally plain JavaScript.
-import { closingHintVisible } from "../public/shared/promises.js";
+import { closingHintPosition, closingHintVisible } from "../public/shared/promises.js";
 
 const options = { broadcasterLogin: "host" };
 const envelope = (id: string, type: string, time: string, event: Record<string, unknown>): EventSubEnvelope => ({ metadata: { message_id: id, message_type: "notification", message_timestamp: time, subscription_type: type }, payload: { event } });
@@ -54,9 +54,17 @@ describe("return promises", () => {
     const html = receiptHtml(receipt); expect(html).toContain("Kept by Alice."); expect(html).not.toContain("Kept by Bao");
   });
 
-  it("shows the closing hint only in the usual final ten minutes or after !closing", () => {
-    const state = emptyState(); state.currentStream = { id: "s2", startedAt: "2026-11-02T10:00:00Z", litUserIds: [] }; state.completedStreamDurationsMs = [60 * 60_000];
-    expect(closingHintVisible(state, Date.parse("2026-11-02T10:49:59Z"))).toBe(false); expect(closingHintVisible(state, Date.parse("2026-11-02T10:50:00Z"))).toBe(true);
+  it("shows the closing hint at 90 percent of a reliable last-five median or after !closing", () => {
+    const state = emptyState(); state.currentStream = { id: "s2", startedAt: "2026-11-02T10:00:00Z", litUserIds: [] };
+    state.completedStreamDurationsMs = [2 * 60_000, 40 * 60_000, 50 * 60_000, 60 * 60_000, 70 * 60_000, 80 * 60_000];
+    expect(closingHintVisible(state, Date.parse("2026-11-02T10:53:59Z"))).toBe(false); expect(closingHintVisible(state, Date.parse("2026-11-02T10:54:00Z"))).toBe(true);
+    state.completedStreamDurationsMs = [10 * 60_000, 20 * 60_000, 29 * 60_000]; expect(closingHintVisible(state, Date.parse("2026-11-02T12:00:00Z"))).toBe(false);
     state.closingHintAt = "2026-11-02T10:20:00Z"; expect(closingHintVisible(state, Date.parse("2026-11-02T10:20:00Z"))).toBe(true);
+  });
+
+  it("positions the hint clear of lamps at both dense tiers", () => {
+    expect(closingHintPosition(0, 1920, 1080, 950.4, "bottom").y).toBe(922.4);
+    expect(closingHintPosition(1, 1920, 1080, 950.4, "bottom").y).toBeLessThan(870);
+    expect(closingHintPosition(2, 1920, 1080, 129.6, "top").y).toBeGreaterThan(210);
   });
 });

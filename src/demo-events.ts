@@ -1,5 +1,15 @@
 import type { EventSubEnvelope } from "./types.js";
 
+export function retimeDemoEnvelope(envelope: EventSubEnvelope, replayStart: number, sourceStart: number, speed = 1): EventSubEnvelope {
+  const timestamp = new Date(replayStart + (Date.parse(envelope.metadata.message_timestamp) - sourceStart) / speed).toISOString();
+  const event = { ...(envelope.payload.event ?? {}) };
+  if (["stream.online", "lamplight.stream.recovered"].includes(envelope.metadata.subscription_type ?? "") && typeof event.started_at === "string") {
+    const startedAt = Date.parse(event.started_at);
+    if (Number.isFinite(startedAt)) event.started_at = new Date(replayStart + (startedAt - sourceStart) / speed).toISOString();
+  }
+  return { ...envelope, metadata: { ...envelope.metadata, message_timestamp: timestamp }, payload: { ...envelope.payload, event } };
+}
+
 export function momentDemo(kind: "ignite" | "fragment" | "complete"): EventSubEnvelope[] {
   const envelopes: EventSubEnvelope[]=[];let sequence=0;
   const push=(type:string,event:Record<string,unknown>,second:number):void=>{envelopes.push({metadata:{message_id:`moment-${kind}-${sequence++}`,message_type:type.startsWith("lamplight.")?"internal":"notification",message_timestamp:new Date(Date.UTC(2026,10,2,0,0,second)).toISOString(),subscription_type:type},payload:{event}})};

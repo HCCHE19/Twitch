@@ -13,7 +13,7 @@ import { drawSkyGlyph, drawSkyOverlay, updateSkyDisplayLock } from "/shared/sky.
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 import { animateRowLayout, reconcileLampOrder, releaseArrivalBatch } from "/shared/row-motion.js";
-import { closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
+import { closingHintPosition, closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -266,8 +266,9 @@ function render(time) {
       }
     }
     if (promisesEnabled && closing.kind === "none" && !opening.active && closingHintVisible(state, renderNow)) {
+      const hint = closingHintPosition(laidOut[0]?.tier ?? 0, innerWidth, innerHeight, baseline, selectedLayout);
       context.fillStyle = "rgba(246,232,207,.42)"; context.font = `500 ${Math.max(12, innerHeight * .014)}px "Space Grotesk", system-ui, sans-serif`; context.textAlign = "right";
-      context.fillText("back next time? type !back", innerWidth - 28, baseline + (selectedLayout === "top" ? 32 : -28));
+      context.fillText("back next time? type !back", hint.x, hint.y);
     }
     for (const [userId, startedAt] of arrivalStarts) if (renderNow - startedAt > 1_100) arrivalStarts.delete(userId);
   }

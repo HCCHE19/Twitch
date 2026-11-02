@@ -296,3 +296,10 @@
 - Decision: the four-minute `--moment night` scenario runs every feature together with threshold three and normal moments. Ignite is immediate; fragment and completion moments are serialized; no sky moment is dropped; the panel advances with the corresponding moment.
 - Implementation: the sixth-fragment sweep now finishes before the completion sequence starts 1.25 seconds later. Lamp arrivals and flares remain independent, so stacked events exercise the real overlay rather than pausing other state.
 - Verification: reviewed 520 frames at 1920×1080, sampled every 500 ms. Per instruction, the early closing hint and a brief premature Leo-complete panel state are reported for a later fix rather than changed in this batch.
+
+## 2026-11-02 — Night self-check fixes
+
+- Decision: automatic closing invitations require a median of at least 30 minutes across the last five completed streams and appear at 90 percent of that median; `!closing` remains an immediate explicit override. Dense rows place the invitation above the sill end.
+- Decision: a sky panel caption advances on the same queued moment transition as its drawing and may not expose the completed state before that moment starts.
+- Implementation: demo replay now retimes `stream.online.started_at` together with its envelope timestamp, preventing compressed synthetic history from masquerading as multi-hour streams.
+- Verification: all 103 tests and TypeScript checks passed. Repeated the 1920×1080 Playwright capture (520 frames, every 500 ms) into ignored `tmp/night/`, with canvas-text tracking. The hint first appears at frame 453 after explicit `!closing`, clear above the dense row (frame 460). Leo first renders complete at frame 397 during the completion transition, with no subsequent return to 5 of 6. Checked representative before/after frames visually; the two reported findings are resolved.

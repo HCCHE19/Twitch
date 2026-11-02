@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { skyMomentTransition,skyPanelModel,updateSkyDisplayLock } from "../public/shared/sky.js";
+import { drawSkyOverlay,skyMomentTransition,skyPanelModel,skyPanelTransitionAt,updateSkyDisplayLock } from "../public/shared/sky.js";
 import { momentDemo } from "../src/demo-events.js";
 
 const fragment=(letter:string,index:number)=>({streamId:`s${index}`,constellation:"Leo",fragment:letter,earnedAt:`2026-11-02T00:00:0${index}Z`,litUserIds:[]});
@@ -32,6 +32,23 @@ describe("sky panel state fidelity",()=>{
     const pending=skyMomentTransition(state,false),settled=skyMomentTransition(state,true);
     expect(pending.rendered.counts.Leo).toBe(2);expect(settled.rendered.counts.Leo).toBe(3);
     expect(pending.before.fragments).toEqual(state.slice(0,-1));expect(settled.after.fragments).toEqual(state);
+  });
+
+  it("does not show the completed caption before its queued moment starts",()=>{
+    const state=["A","B","C","D","E","F"].map((letter,index)=>({...fragment(letter,index),earnedAt:"2026-11-02T00:00:10Z",streamId:"stream-6"}));
+    const beforeStart=skyPanelTransitionAt(state,Date.parse("2026-11-02T00:00:11Z"),"normal",false,{streamId:"stream-6",constellation:"Leo"});
+    expect(beforeStart.completionFrame.active).toBe(false);expect(beforeStart.transition.rendered.caption).toBe("Leo, 5 of 6");
+    expect(beforeStart.transition.rendered.caption).not.toBe("Leo, complete");
+    // Observe actual canvas text too: an inactive crossfade must not draw the future caption over this model.
+    const captions: string[] = [];
+    const ctx = new Proxy({ fillText: (text: string) => captions.push(text), createRadialGradient: () => ({ addColorStop() {} }) }, {
+      get: (target, key) => Reflect.get(target, key) ?? (() => {}),
+    });
+    for (const level of ["normal", "big", "quiet"]) {
+      captions.length = 0;
+      drawSkyOverlay(ctx, { skyFragments: state }, 1920, 1080, false, Date.parse("2026-11-02T00:00:09Z"), "bottom", level, false, { constellation: "Leo" });
+      expect(captions).toEqual(["Leo, 5 of 6"]);
+    }
   });
 
   it("gives fragment demo one real fragment and completion demo five plus the sixth",()=>{

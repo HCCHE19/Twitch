@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { nightDemo } from "../src/demo-events.js";
+import { nightDemo, retimeDemoEnvelope } from "../src/demo-events.js";
 import { createFlareEnvelope, emptyState, reduceEnvelope } from "../src/presence.js";
 import { applyPromiseCommand } from "../src/promises.js";
 import { applyThreadCommand, applyThreadReunion } from "../src/threads.js";
 
 describe("full-night demo", () => {
+  it("retimes stream starts with their envelopes so short history cannot fake a long median", () => {
+    const events = nightDemo(), sourceStart = Date.parse(events[0]!.metadata.message_timestamp), replayStart = Date.parse("2026-11-02T10:00:00Z");
+    const retimed = events.map((event) => retimeDemoEnvelope(event, replayStart, sourceStart));
+    const firstOnline = retimed.find((event) => event.metadata.subscription_type === "stream.online")!;
+    expect(firstOnline.payload.event?.started_at).toBe(firstOnline.metadata.message_timestamp);
+    const state = emptyState(); for (const event of retimed.slice(0, retimed.findIndex((item) => String(item.payload.event?.id) === "night-main"))) reduceEnvelope(state, event, { broadcasterLogin: "demo_broadcaster" });
+    expect(state.completedStreamDurationsMs).toEqual([7_000, 7_000, 7_000, 7_000, 7_000]);
+  });
+
   it("contains the requested stacked, rebuildable feature state", () => {
     const events = nightDemo(), state = emptyState(true), options = { broadcasterLogin: "demo_broadcaster" };
     for (const event of events) {
