@@ -20,7 +20,7 @@
 
 ## 2026-11-01 — Persistence, privacy, rendering, and demo
 
-**Decided:** `events.jsonl` is the ledger and `state.json` is derived via `npm run rebuild`. Private receipt JSON may retain IDs; public receipt HTML and committed samples show names only. Reuse lamp drawing in receipt HTML. Use five silhouettes and seeded amber H20–50 / teal H170–195 / rose H335–355 at about 60/25/15, dark halos, reduced motion, lifetime-attendance size, and retained streak. Fade prior lamps .45/.30/.18; show at most 60 plus a counted cluster. Ignore broadcaster and common bots from config. Add adjustable `npm run demo` with a visible `DEMO REPLAY` tag; submission video remains real Twitch.
+**Decided:** `events.jsonl` is the ledger and `state.json` is derived via `npm run rebuild`. Private receipt JSON may retain IDs; local receipt HTML shows names only. Reuse lamp drawing in receipt HTML. Use five silhouettes and seeded amber H20–50 / teal H170–195 / rose H335–355 at about 60/25/15, dark halos, reduced motion, lifetime-attendance size, and retained streak. Fade prior lamps .45/.30/.18; show at most 60 plus a counted cluster. Ignore broadcaster and common bots from config. Add adjustable `npm run demo` with a visible `DEMO REPLAY` tag; submission video remains real Twitch.
 
 **Action:** Added these as explicit architecture, data, privacy, generator, overlay, configuration, and test requirements. Space Grotesk and its OFL licence are the only bundled asset, so README wording will say so accurately.
 
@@ -56,7 +56,7 @@
 
 **Decided:** The public HTML must not display credential-like identifiers that a viewer could mistake for Twitch user IDs or secrets.
 
-**Action:** Removed the receipt-hash prefix from public HTML and replaced it with `Public view · names only`. The full receipt hash, Twitch user IDs, and source-event identifiers remain only in the gitignored local JSON used by the verifier; OAuth tokens and client secrets are never written to either receipt format.
+**Action:** Removed the receipt-hash prefix from local HTML. The full receipt hash, Twitch user IDs, and source-event identifiers remain only in the gitignored local JSON used by the verifier; OAuth tokens and client secrets are never written to either receipt format.
 
 ## 2026-11-02 — Viewer-count sampling and declared-versus-verified receipt
 
@@ -100,9 +100,9 @@
 
 **Action:** Added roll-call controls, server-side called state, deterministic order/timing, overlay emphasis, automatic completion, and an order/completion test.
 
-## 2026-11-02 — Viewer receipt search and attendance dots
+## 2026-11-02 — Streamer receipt search and attendance dots
 
-**Decided:** Public receipt search matches display names case-insensitively and highlights the whole row and lamp without exposing IDs. Every row shows exactly ten attendance dots, oldest on the left; when fewer than ten streams exist, unavailable earlier positions are empty. Dot values are derived while sealing from the ledger-backed completed/current stream IDs and lamp attendance, with no new runtime store.
+**Decided:** Local receipt search matches display names case-insensitively and highlights the whole row and lamp. Every row shows exactly ten attendance dots, oldest on the left; when fewer than ten streams exist, unavailable earlier positions are empty. Dot values are derived while sealing from the ledger-backed completed/current stream IDs and lamp attendance, with no new runtime store.
 
 **Action:** Added name search, row/lamp highlighting, ten-dot ledger-derived history, legacy fallback, and tests for the current-stream dot count and public controls.
 
@@ -112,11 +112,11 @@
 
 **Action:** Added validated threshold configuration, one-shot per-stream tracking, overlay size/glow wave, and tests for threshold crossing, no repeat, new-stream reset, direction, and duration.
 
-## 2026-11-02 — GitHub Pages receipt export
+## 2026-11-02 — Removed GitHub Pages receipt export
 
-**Decided:** `npm run export` produces a self-contained `docs/` site from the fictional public sample, production lamp renderer, Space Grotesk font, and OFL licence. Export rewrites root-relative asset paths for the `/Twitch/` project Pages location. The README links to the Pages URL while continuing to label the committed receipt as fictional sample data.
+**Decided:** The earlier GitHub Pages receipt export was removed before release. Receipts are local streamer records only.
 
-**Action:** Added the export CLI, package script, generated Pages artifacts, README link, and an export-output validation step.
+**Action:** Removed the export CLI, package script, generated Pages artifacts, README link, and committed sample.
 
 ## 2026-11-02 — Overlay name visibility
 
@@ -174,7 +174,7 @@
 
 **Decided:** With `SKY=true`, the first crossing of `THRESHOLD_N` in each stream earns exactly one of 72 non-duplicate zodiac fragments. Selection is seeded by stream ID: prefer an in-progress constellation 70% of the time when both paths exist, otherwise start an untouched constellation, then select a missing letter A–F. A fragment event records the stream, constellation, letter, and stable IDs of every lamp lit at that instant. The ledger is the sole source of sky state; after all 72, selection returns no award.
 
-**Decided:** Use numeric positions selected from d3-celestial's permissively licensed constellation line data as real sky coordinates, then normalize them and generate Lamplight's own connected six-region line construction, visual hierarchy, and motion in code. No image or additional bundled visual asset is introduced. The panel stays top-right, uses low-opacity white, and the short earning animation remains above the lamp band before moving into the panel. Public receipts translate earning-time IDs to display names and never embed those IDs.
+**Decided:** Use numeric positions selected from d3-celestial's permissively licensed constellation line data as real sky coordinates, then normalize them and generate Lamplight's own connected six-region line construction, visual hierarchy, and motion in code. No image or additional bundled visual asset is introduced. The panel stays top-right, uses low-opacity white, and the short earning animation remains above the lamp band before moving into the panel. Local receipt HTML translates earning-time IDs to display names.
 
 **Action:** Added deterministic selection, internal hash-chained events, reducer/rebuild state, gated server processing, top-right panel/opening enlargement/earning and completion animation, receipt sky and summary data, privacy-safe HTML rendering, source documentation, and tests for determinism, weighting, uniqueness, once-per-stream, completion, rebuild, disabled behavior, and public privacy.
 
@@ -276,3 +276,10 @@
 - Implementation: validated settings are stored owner-only in gitignored `data/settings.json`. The server broadcasts each change immediately, and event handlers read the current values before accepting commands, awarding fragments, or sealing receipts.
 - Decision: `.env` is for Twitch credentials and the local server port; old feature values may seed a first run but are not the ongoing source of truth.
 - Implementation: `.env.example` now contains only the optional token, client id, client secret, channel login, and `PORT`. Built-in defaults remain safe when no legacy value or settings file exists.
+
+## 2026-11-02 — Receipts remain local
+
+- Decision: Presence Receipts are streamer records available only on the loopback-bound Lamplight server. Nothing about viewers is published.
+- Implementation: removed the GitHub Pages receipt, committed sample, export command, and export code. Receipt JSON and HTML remain gitignored local files; `npm run verify` remains the integrity proof.
+- Decision: do not retain chat text.
+- Implementation: before hashing or writing a chat event, the ledger replaces its message with a boolean presence qualification and retains only the chatter identity fields required for deterministic rebuild and receipt verification. Thread, promise, and flare actions remain separate derived ledger events without chat text.

@@ -16,7 +16,7 @@ Flow: Twitch EventSub -> validate/dedupe -> append canonical event with `prevHas
 
 ```text
 src/{server,twitch,event-log,presence,store,types}.ts
-public/{overlay,receipt}/{index.html,*.css,*.js}
+public/{overlay,control,setup,sky-preview,shared}/...
 config/ignored-users.json
 test/{fixtures,*.test.ts}
 data/{events.jsonl,state.json}  receipts/ # generated; ignored except .gitkeep
@@ -40,7 +40,7 @@ Qualifying chat is case-insensitive trimmed `!lamp`/`!lurk`, or a message whose 
 
 ## Data model
 
-`LampState`: `userId`, latest `login`/`displayName`, deterministic seed inputs, `firstSeenAt`, `lastLitAt`, `lastStreamId`, `streamsSinceLit`, `attendedStreamIds[]`, `streak`, `lifetimeLights`. `StreamState`: Twitch stream ID/start and first-lit-order user IDs. `ClosingMoment`: offline timestamp, lit order, total and returning counts. `LogEvent`: schema version, EventSub or internal message ID/type/time, selected payload fields, `receivedAt`, `prevHash`, `hash`; internal types include viewer samples and accepted flares. `PresenceReceipt`: stream metadata, ordered presence rows, minute samples, viewer/lamp peaks, comparison sentence, chain anchors/count, sealed time, receipt hash. Tokens and raw authorization headers are never logged. Private receipt JSON may contain user IDs and remains ignored; receipt HTML and committed samples contain display names only and use consented or fictional names.
+`LampState`: `userId`, latest `login`/`displayName`, deterministic seed inputs, `firstSeenAt`, `lastLitAt`, `lastStreamId`, `streamsSinceLit`, `attendedStreamIds[]`, `streak`, `lifetimeLights`. `StreamState`: Twitch stream ID/start and first-lit-order user IDs. `ClosingMoment`: offline timestamp, lit order, total and returning counts. `LogEvent`: schema version, EventSub or internal message ID/type/time, selected payload fields, `receivedAt`, `prevHash`, `hash`; internal types include viewer samples and accepted flares. `PresenceReceipt`: stream metadata, ordered presence rows, minute samples, viewer/lamp peaks, comparison sentence, chain anchors/count, sealed time, receipt hash. Tokens, authorization headers, and chat text are never logged. Receipt JSON and HTML remain gitignored on the streamer's machine; JSON may contain stable user IDs required for verification.
 
 ## Milestones, stop loss, and tests
 

@@ -23,4 +23,4 @@ const paths = await writeReceiptFiles(receipt);
 reduceEnvelope(state, envelope, options);
 state.lastHash = entry.hash;
 await writeState("data/state.json", state);
-console.log(`[finalize] sealed ${paths.jsonPath}; public view ${paths.htmlPath}`);
+console.log(`[finalize] sealed local files ${paths.jsonPath} and ${paths.htmlPath}`);

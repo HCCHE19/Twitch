@@ -1,7 +1,5 @@
 # Lamplight
 
-[See a real receipt](https://hcche19.github.io/Twitch/)
-
 Lamplight gives a silent Twitch viewer one gentle action: send `!lamp`, `!lurk`, or one emote by itself. Their persistent, procedurally generated lamp brightens on the OBS overlay. When the stream ends, Lamplight seals a tamper-evident Presence Receipt from its EventSub ledger. It is attendance, not a leaderboard or recap.
 
 All lamp and sky artwork and motion are generated in code; the only bundled assets are the Space Grotesk font under the OFL and the constellation star positions and magnitudes from the d3-celestial dataset under its BSD licence, with the licence text included in this repo.
@@ -40,7 +38,7 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
    If a previous stream exists, the band first shows its lamp count and how many of those viewers have returned, then fades the persistent lamps in after ten seconds.
    When a dim lamp relights, its full-size name plate briefly says which lifetime stream attendance this is.
 4. While live, Lamplight samples Twitch's reported `viewer_count` immediately and every 60 seconds, recording it beside the number of lamps lit at that moment.
-5. Stop the stream. Lamps extinguish in first-lit order, the band briefly reports total and returning lamps, and Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `receipts/`.
+5. Stop the stream. Lamps extinguish in first-lit order, the band briefly reports total and returning lamps, and Twitch's `stream.offline` event automatically writes private JSON and local HTML under `receipts/`.
 
 Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
 Open `http://localhost:8787/control/` privately to compact or hide the band.
@@ -53,7 +51,7 @@ Flares send a delayed, fainter pulse to adjacent lamps; two different viewers fl
 
 ### Optional constellation sky and wind
 
-Both additions are isolated and disabled by default. Set `SKY=true` to let each stream that reaches `THRESHOLD_N` earn one deterministic, non-duplicate fragment from a 72-fragment sky: twelve zodiac constellations with six connected regions each. The top-right panel shows untouched, in-progress, and complete constellations; the opening card enlarges the latest progress, and receipts show the full sky plus the display names present at the earning moment. Fragment events, including the stable user IDs required for rebuild, are hash-chained in the private ledger; public receipt HTML exposes names only. The numeric star positions come from the permissively licensed [d3-celestial constellation data](https://github.com/ofrohn/d3-celestial/blob/master/data/constellations.lines.json); Lamplight generates its own regions, lines, glyphs, and animation in code.
+Both additions are isolated and disabled by default. Set `SKY=true` to let each stream that reaches `THRESHOLD_N` earn one deterministic, non-duplicate fragment from a 72-fragment sky: twelve zodiac constellations with six connected regions each. The top-right panel shows untouched, in-progress, and complete constellations; the opening card enlarges the latest progress, and the streamer's local receipt shows the full sky plus the display names present at the earning moment. Fragment events, including the stable user IDs required for rebuild, are hash-chained in the private ledger. The numeric star positions come from the permissively licensed [d3-celestial constellation data](https://github.com/ofrohn/d3-celestial/blob/master/data/constellations.lines.json); Lamplight generates its own regions, lines, glyphs, and animation in code.
 
 Set `WIND=true` to make five different viewers flaring within ten seconds lean every flame together for about one second. Wind has a ten-second global cooldown and adds no chat or ledger output.
 
@@ -75,7 +73,7 @@ If the offline event never arrives, run `npm run finalize`. Verify a receipt wit
 npm run verify -- receipts/<stream-id>.json
 ```
 
-The receipt includes the minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. Viewers can find their name, see a ten-dot attendance history oldest on the left, and see up to three display names with whom they have shared the most streams. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
+The local receipt includes minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. The streamer can search attendees, inspect ten-stream attendance history, and see up to three display names that most often attended together. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
 
 ## Demo and tests
 
@@ -116,11 +114,7 @@ These sources motivate the problem; no study yet shows that lightweight presence
 
 ## Privacy and boundaries
 
-Real `data/` and `.env` are gitignored. Private receipt JSON may contain Twitch user IDs because verification needs stable identity; public receipt HTML contains display names only. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
-
-The committed [fictional sample receipt](public/receipt/sample.html) contains names only. It is a design sample, not evidence from a real stream.
-
-Run `npm run export` to rebuild the self-contained GitHub Pages version in `docs/` from that sample and the production lamp renderer.
+No chat text is stored, only who lit a lamp and when; receipts never leave the streamer's machine, and nothing about viewers is published. Derived promise, flare, and mutual-thread events contain only the identities and times needed to rebuild those features. Real `data/`, `receipts/`, and `.env` are gitignored; private receipt JSON may contain Twitch user IDs because verification needs stable identity. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
 
 ## Credits and licences
 

@@ -40,10 +40,10 @@ describe("presence receipts", () => {
     const html = receiptHtml(receipt);
     expect(html).toContain("Friend");
     expect(html).toContain("drawLampDesign");
-    expect(html).toContain("Public view · names only");
+    expect(html).toContain("Local streamer record");
     expect(html).toContain("Declared versus verified presence");
     expect(html).toContain("Twitch reported 12 viewers at peak; 1 lit a lamp.");
-    expect(html).toContain("Find your lamp");
+    expect(html).toContain("Find an attendee");
     expect((html.match(/class=\"dot(?: filled)?\"/g) ?? []).length).toBe(10);
     expect(html).not.toContain("secret-user-id");
     expect(html).not.toContain(receipt.receiptHash);

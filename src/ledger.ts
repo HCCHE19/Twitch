@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { canonicalJson } from "./canonical.js";
-import { emptyState, reduceEnvelope, type ReduceOptions } from "./presence.js";
+import { emptyState, isPresenceMessage, reduceEnvelope, type ReduceOptions } from "./presence.js";
 import type { DerivedState, EventSubEnvelope, LedgerEntry } from "./types.js";
 
 function sha256(value: string): string {
@@ -10,6 +10,7 @@ function sha256(value: string): string {
 }
 
 export function makeLedgerEntry(envelope: EventSubEnvelope, prevHash: string, receivedAt = new Date().toISOString()): LedgerEntry {
+  const payload = sanitizePayload(envelope);
   const withoutHash = {
     schemaVersion: 1 as const,
     messageId: envelope.metadata.message_id,
@@ -17,10 +18,20 @@ export function makeLedgerEntry(envelope: EventSubEnvelope, prevHash: string, re
     ...(envelope.metadata.subscription_type ? { subscriptionType: envelope.metadata.subscription_type } : {}),
     messageTimestamp: envelope.metadata.message_timestamp,
     receivedAt,
-    payload: envelope.payload,
+    payload,
     prevHash
   };
   return { ...withoutHash, hash: sha256(canonicalJson(withoutHash)) };
+}
+
+function sanitizePayload(envelope: EventSubEnvelope): Record<string, unknown> {
+  if (envelope.metadata.subscription_type !== "channel.chat.message") return envelope.payload;
+  const event = envelope.payload.event ?? {};
+  const qualifies = isPresenceMessage(event);
+  return { ...envelope.payload, event: {
+    ...(qualifies ? { chatter_user_id: event.chatter_user_id, chatter_user_login: event.chatter_user_login, chatter_user_name: event.chatter_user_name } : {}),
+    message: { lamplight_presence: qualifies }
+  } };
 }
 
 export function verifyLedger(entries: LedgerEntry[]): void {

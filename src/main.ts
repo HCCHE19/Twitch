@@ -104,7 +104,7 @@ async function main(): Promise<void> {
           const liveSettings = settings.get();
           const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp, "eventsub", new Date().toISOString(), liveSettings.threads, liveSettings.sky, liveSettings.promises);
           const paths = await writeReceiptFiles(receipt);
-          console.log(`[receipt] sealed ${paths.jsonPath}; public view ${paths.htmlPath}`);
+          console.log(`[receipt] sealed local files ${paths.jsonPath} and ${paths.htmlPath}`);
         }
         reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
         state.lastHash = entry.hash;

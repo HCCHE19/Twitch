@@ -29,7 +29,8 @@ export function emptyState(demoReplay = false): DerivedState {
 }
 
 export function isPresenceMessage(event: Record<string, unknown>): boolean {
-  const message = event.message as { text?: unknown; fragments?: unknown } | undefined;
+  const message = event.message as { text?: unknown; fragments?: unknown; lamplight_presence?: unknown } | undefined;
+  if (message?.lamplight_presence === true) return true;
   const text = typeof message?.text === "string" ? message.text.trim().toLowerCase() : "";
   if (text === "!lamp" || text === "!lurk") return true;
   return isSingleEmoteMessage(event) || isSingleUnicodeEmojiMessage(event);

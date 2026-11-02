@@ -12,7 +12,7 @@
     "rebuild": "npm run build && node dist/rebuild.js",
     "verify": "npm run build && node dist/verify.js",
     "finalize": "npm run build && node dist/finalize.js",
-    "export": "npm run build && node dist/export.js",
+    "privacy:migrate": "npm run build && node dist/privacy-migrate.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "tsc -p tsconfig.json --noEmit",

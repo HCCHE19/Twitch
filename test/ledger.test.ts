@@ -18,6 +18,14 @@ describe("ledger", () => {
     const stateB = rebuildState([first, second], { broadcasterLogin: "host" });
     expect(stateA).toEqual(stateB);
     expect(stateA.lamps.u1?.displayName).toBe("Viewer");
+    expect(JSON.stringify(second.payload)).not.toContain("!lamp");
+    expect(second.payload).toMatchObject({ event: { chatter_user_id: "u1", message: { lamplight_presence: true } } });
+  });
+
+  it("stores neither text nor identity for ordinary non-presence chat", () => {
+    const entry = makeLedgerEntry(item("chat", "channel.chat.message", { chatter_user_id: "quiet-user", chatter_user_login: "quiet", chatter_user_name: "Quiet", message: { text: "private conversation", fragments: [{ type: "text", text: "private conversation" }] } }), "");
+    expect(JSON.stringify(entry.payload)).not.toContain("private conversation"); expect(JSON.stringify(entry.payload)).not.toContain("quiet-user");
+    expect(entry.payload).toEqual({ event: { message: { lamplight_presence: false } } });
   });
 
   it("detects payload tampering and chain breaks", () => {
