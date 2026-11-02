@@ -251,3 +251,12 @@
 **Decided:** Treat one Unicode emoji grapheme and nothing else as the same one-time-per-stream lamp trigger as one Twitch emote. Support joined emoji, skin tones, flags, variation selectors, and keycaps. Reject emoji plus text and multiple emoji. Do not broaden repeat-emote flares; this part changes presence only.
 
 **Action:** Added a grapheme-aware Unicode property matcher to the existing presence predicate and tests for simple, modified, joined, flag, and heart emoji; text combinations, multiple emoji, and duplicate lights remain rejected.
+
+## 2026-11-02 — Return promises
+
+- Decision: `PROMISES` defaults on. A lit viewer may use `!back` once per stream; it is a no-pressure signal and cannot be undone.
+- Implementation: each accepted promise is a `lamplight.promise.made` hash-chained ledger event. The next `stream.online` derives its eligible promise cohort from the immediately preceding completed stream; a normal lamp trigger marks a kept promise without extra viewer action.
+- Decision: kept promises help the shared sky without exposing absences.
+- Implementation: a kept lamp contributes one extra unit to the fragment threshold, receives a brief gold landing pulse, and increments its ledger-derived lifetime kept total. Aggregate counts and keeper names appear in the local streamer receipt; non-returner names never do.
+- Decision: the closing invitation appears only near the channel's usual end or after the broadcaster types `!closing`.
+- Implementation: usual duration is the median of completed stream durations rebuilt from the ledger. With no completed history the hint remains hidden unless `!closing` is received. The opening card is capped at three lines.

@@ -104,6 +104,15 @@ async function loadBooleanFlag(key: string, env = process.env): Promise<boolean>
 export const loadSkyEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("SKY", env);
 export const loadWindEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("WIND", env);
 
+export async function loadPromisesEnabled(env = process.env): Promise<boolean> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const value = (env.PROMISES?.trim() || fileValues.PROMISES?.trim() || "true").toLowerCase();
+  if (value !== "true" && value !== "false") throw new Error("PROMISES must be true or false");
+  return value === "true";
+}
+
 export async function loadMomentLevel(env = process.env): Promise<MomentLevel> {
   let fileValues: Record<string, string> = {};
   try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }

@@ -81,7 +81,8 @@ describe("presence rules", () => {
       startedAt: "2026-11-01T00:00:07Z",
       litUserIds: ["user-newcomer", "user-returning"],
       totalLamps: 2,
-      returningLamps: 1
+      returningLamps: 1,
+      promisedLamps: 0
     });
   });
 

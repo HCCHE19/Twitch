@@ -6,7 +6,10 @@ export function closingFrame(moment, now = Date.now(), reducedMotion = false) {
   if (elapsed >= extinguishDuration) {
     return {
       kind: "summary",
-      text: `${moment.totalLamps} lamp${moment.totalLamps === 1 ? "" : "s"} tonight, ${moment.returningLamps} returning`
+      lines: [
+        `${moment.totalLamps} lamp${moment.totalLamps === 1 ? "" : "s"} tonight, ${moment.returningLamps} returning`,
+        `${moment.promisedLamps ?? 0} of ${moment.totalLamps} promised to come back`
+      ]
     };
   }
   const extinguished = Math.floor(elapsed / 150);

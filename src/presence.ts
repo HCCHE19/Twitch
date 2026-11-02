@@ -16,6 +16,12 @@ export function emptyState(demoReplay = false): DerivedState {
     pendingThreads: [],
     threadOutgoingUserIds: [],
     skyFragments: [],
+    promises: [],
+    promiseAtByUserId: {},
+    promiseKeptUserIds: [],
+    promiseKeptAtByUserId: {},
+    closingHintAt: null,
+    completedStreamDurationsMs: [],
     completedStreamIds: [],
     lamps: {},
     demoReplay
@@ -86,10 +92,12 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
 
   if (type === "stream.online" || type === "lamplight.stream.recovered") {
     const previousStreamId = state.completedStreamIds.at(-1);
+    const previousPromiseUserIds = previousStreamId ? state.promises.filter((promise) => promise.streamId === previousStreamId).map((promise) => promise.userId) : [];
     state.openingCard = previousStreamId ? {
       startedAt: envelope.metadata.message_timestamp,
       previousStreamId,
-      previousUserIds: Object.values(state.lamps).filter((lamp) => lamp.attendedStreamIds.includes(previousStreamId)).map((lamp) => lamp.userId)
+      previousUserIds: Object.values(state.lamps).filter((lamp) => lamp.attendedStreamIds.includes(previousStreamId)).map((lamp) => lamp.userId),
+      previousPromiseUserIds
     } : null;
     for (const lamp of Object.values(state.lamps)) lamp.streamsSinceLit += 1;
     const id = String(event.id ?? `recovered-${envelope.metadata.message_timestamp}`);
@@ -98,6 +106,10 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     state.threadReunionAtByUserId = {};
     state.pendingThreads = [];
     state.threadOutgoingUserIds = [];
+    state.promiseAtByUserId = {};
+    state.promiseKeptUserIds = [];
+    state.promiseKeptAtByUserId = {};
+    state.closingHintAt = null;
     state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
     return state;
   }
@@ -108,7 +120,8 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
       startedAt: envelope.metadata.message_timestamp,
       litUserIds: [...state.currentStream.litUserIds],
       totalLamps: state.currentStream.litUserIds.length,
-      returningLamps: state.currentStream.litUserIds.filter((userId) => (state.lamps[userId]?.attendedStreamIds.length ?? 0) > 1).length
+      returningLamps: state.currentStream.litUserIds.filter((userId) => (state.lamps[userId]?.attendedStreamIds.length ?? 0) > 1).length,
+      promisedLamps: state.promises.filter((promise) => promise.streamId === state.currentStream?.id).length
     };
     state.pendingThreads = [];
     state.threadOutgoingUserIds = [];
@@ -116,6 +129,8 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
       if (lit.has(lamp.userId)) lamp.streamsSinceLit = 0;
       else { lamp.streamsSinceLit += 1; lamp.streak = 0; }
     }
+    const duration = Date.parse(envelope.metadata.message_timestamp) - Date.parse(state.currentStream.startedAt);
+    if (Number.isFinite(duration) && duration >= 0) state.completedStreamDurationsMs.push(duration);
     state.completedStreamIds.push(state.currentStream.id);
     state.currentStream = null;
     return state;
@@ -132,6 +147,17 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     const litUserIds = Array.isArray(event.lit_user_ids) ? event.lit_user_ids.filter((value): value is string => typeof value === "string") : [];
     if (!streamId || !constellation || !fragment || state.skyFragments.some((item) => item.streamId === streamId || (item.constellation === constellation && item.fragment === fragment))) return state;
     state.skyFragments.push({ streamId, constellation, fragment, earnedAt: envelope.metadata.message_timestamp, litUserIds });
+    return state;
+  }
+  if (type === "lamplight.promise.made") {
+    const streamId = String(event.stream_id ?? ""), userId = String(event.user_id ?? "");
+    if (!streamId || !userId || state.promises.some((promise) => promise.streamId === streamId && promise.userId === userId)) return state;
+    state.promises.push({ streamId, userId, madeAt: envelope.metadata.message_timestamp });
+    if (state.currentStream?.id === streamId) state.promiseAtByUserId[userId] = envelope.metadata.message_timestamp;
+    return state;
+  }
+  if (type === "lamplight.promise.closing") {
+    if (state.currentStream?.id === String(event.stream_id ?? "")) state.closingHintAt = envelope.metadata.message_timestamp;
     return state;
   }
   if (type === "lamplight.thread.tied") {
@@ -159,6 +185,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   if (!userId || state.currentStream.litUserIds.includes(userId)) return state;
   const timestamp = envelope.metadata.message_timestamp;
   const previous = state.lamps[userId];
+  const keptPromise = state.openingCard?.previousPromiseUserIds.includes(userId) === true;
   state.lamps[userId] = {
     userId,
     login,
@@ -169,9 +196,14 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     streamsSinceLit: 0,
     attendedStreamIds: [...(previous?.attendedStreamIds ?? []), state.currentStream.id],
     streak: (previous?.streak ?? 0) + 1,
-    lifetimeLights: (previous?.lifetimeLights ?? 0) + 1
+    lifetimeLights: (previous?.lifetimeLights ?? 0) + 1,
+    lifetimePromisesKept: (previous?.lifetimePromisesKept ?? 0) + (keptPromise ? 1 : 0)
   };
   state.currentStream.litUserIds.push(userId);
+  if (keptPromise) {
+    state.promiseKeptUserIds.push(userId);
+    state.promiseKeptAtByUserId[userId] = timestamp;
+  }
   return state;
 }
 

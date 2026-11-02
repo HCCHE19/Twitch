@@ -13,6 +13,7 @@ import { drawSkyGlyph, drawSkyOverlay, updateSkyDisplayLock } from "/shared/sky.
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 import { animateRowLayout, arrivalStartTime, reconcileLampOrder } from "/shared/row-motion.js";
+import { closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -29,6 +30,7 @@ let threadsEnabled = false;
 let skyEnabled = false;
 let windEnabled = false;
 let momentLevel = "normal";
+let promisesEnabled = true;
 let windTracker = { streamId: null, startedAt: null, lastTriggeredAt: null, signature: "", direction: 1 };
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 let stableOrderIds = [];
@@ -92,7 +94,7 @@ function render(time) {
   canvas.style.opacity = preferences.hidden ? "0" : "1";
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches);
-  const opening = openingCardFrame(state?.openingCard, state?.currentStream, renderNow);
+  const opening = openingCardFrame(state?.openingCard, state?.currentStream, promisesEnabled ? state?.promiseKeptUserIds : [], renderNow);
   if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock);
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
@@ -114,13 +116,14 @@ function render(time) {
       context.fillStyle = "rgba(246,232,207,.9)";
       context.font = `600 ${Math.max(18, innerHeight * .024)}px "Space Grotesk", system-ui, sans-serif`;
       context.textAlign = "center";
-      context.fillText(opening.text, innerWidth / 2, baseline);
+      (opening.lines ?? []).forEach((line, index) => context.fillText(line, innerWidth / 2, baseline + index * Math.max(24, innerHeight * .03)));
     }
     if (closing.kind === "summary") {
       context.fillStyle = "rgba(246,232,207,.9)";
       context.font = `600 ${Math.max(18, innerHeight * .024)}px "Space Grotesk", system-ui, sans-serif`;
       context.textAlign = "center";
-      context.fillText(closing.text, innerWidth / 2, baseline);
+      const lines = promisesEnabled ? closing.lines : closing.lines?.slice(0, 1);
+      (lines ?? []).forEach((line, index) => context.fillText(line, innerWidth / 2, baseline + index * Math.max(24, innerHeight * .03)));
     }
     const closingIds = state.closingMoment?.litUserIds ?? [];
     const visibleClosingIds = new Set(closing.kind === "lamps" ? closing.visibleUserIds : []);
@@ -202,6 +205,19 @@ function render(time) {
         drawLamp(context, item.lamp.userId, item.x, renderY, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
           detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.active ? .18 : 0) + (ignite?.bloom ?? 0) * .55), glowAlpha: Math.min(1, glowAlpha * (1 + (ignite?.active ? .22 : 0) + (ignite?.bloom ?? 0) * .5)), extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0), scaleY: ignite?.scaleY ?? 1
         });
+        if (promisesEnabled) {
+          const keptPulse = keptPromisePulse(state.promiseKeptAtByUserId?.[item.lamp.userId], renderNow, reducedMotion.matches);
+          if (keptPulse > 0) {
+            const gold = context.createRadialGradient(item.x, renderY - renderedSize * .38, 0, item.x, renderY - renderedSize * .38, renderedSize * .72);
+            gold.addColorStop(0, `rgba(255,224,143,${keptPulse * .35})`); gold.addColorStop(1, "rgba(255,196,92,0)");
+            context.fillStyle = gold; context.beginPath(); context.arc(item.x, renderY - renderedSize * .38, renderedSize * .72, 0, Math.PI * 2); context.fill();
+          }
+          const knot = promiseKnotFrame(state.promiseAtByUserId?.[item.lamp.userId], renderNow, reducedMotion.matches);
+          if (knot.visible) {
+            context.save(); context.strokeStyle = `rgba(255,213,137,${.42 + knot.progress * .38})`; context.lineWidth = Math.max(1.5, renderedSize * .014);
+            context.beginPath(); context.arc(item.x, renderY - renderedSize * .03, renderedSize * (.018 + knot.progress * .025), 0, Math.PI * 2 * knot.progress); context.stroke(); context.restore();
+          }
+        }
         if (ignite?.bloom > 0) {
           const wickY = renderY - renderedSize * .47, bloom = context.createRadialGradient(item.x, wickY, 0, item.x, wickY, renderedSize * .42);
           bloom.addColorStop(0, `rgba(255,246,218,${ignite.bloom * .68})`); bloom.addColorStop(.26, `rgba(247,204,119,${ignite.bloom * .28})`); bloom.addColorStop(1, "rgba(245,195,105,0)");context.fillStyle=bloom;context.beginPath();context.arc(item.x,wickY,renderedSize*.52,0,Math.PI*2);context.fill();
@@ -232,6 +248,10 @@ function render(time) {
         context.fillText(`+${item.cluster}`, item.x, item.y + item.size * .25);
       }
     }
+    if (promisesEnabled && closing.kind === "none" && !opening.active && closingHintVisible(state, renderNow)) {
+      context.fillStyle = "rgba(246,232,207,.42)"; context.font = `500 ${Math.max(12, innerHeight * .014)}px "Space Grotesk", system-ui, sans-serif`; context.textAlign = "right";
+      context.fillText("back next time? type !back", innerWidth - 28, baseline + (selectedLayout === "top" ? 32 : -28));
+    }
     for (const [userId, startedAt] of arrivalStarts) if (renderNow - startedAt > 1_100) arrivalStarts.delete(userId);
   }
   if (!reducedMotion.matches) animationFrame = requestAnimationFrame(render);
@@ -257,6 +277,7 @@ function connect() {
       threadsEnabled = packet.threadsEnabled === true;
       skyEnabled = packet.skyEnabled === true;
       windEnabled = packet.windEnabled === true;
+      promisesEnabled = packet.promisesEnabled !== false;
       momentLevel = ["quiet", "normal", "big"].includes(packet.moments) ? packet.moments : "normal";
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);

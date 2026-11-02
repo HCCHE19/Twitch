@@ -34,6 +34,7 @@ export interface LampState {
   attendedStreamIds: string[];
   streak: number;
   lifetimeLights: number;
+  lifetimePromisesKept: number;
 }
 
 export interface StreamState {
@@ -47,6 +48,7 @@ export interface ClosingMoment {
   litUserIds: string[];
   totalLamps: number;
   returningLamps: number;
+  promisedLamps: number;
 }
 
 export interface ThreadState {
@@ -65,6 +67,13 @@ export interface OpeningCard {
   startedAt: string;
   previousStreamId: string;
   previousUserIds: string[];
+  previousPromiseUserIds: string[];
+}
+
+export interface PromiseRecord {
+  streamId: string;
+  userId: string;
+  madeAt: string;
 }
 
 export interface SkyFragment {
@@ -88,6 +97,12 @@ export interface DerivedState {
   pendingThreads: PendingThread[];
   threadOutgoingUserIds: string[];
   skyFragments: SkyFragment[];
+  promises: PromiseRecord[];
+  promiseAtByUserId: Record<string, string>;
+  promiseKeptUserIds: string[];
+  promiseKeptAtByUserId: Record<string, string>;
+  closingHintAt: string | null;
+  completedStreamDurationsMs: number[];
   completedStreamIds: string[];
   lamps: Record<string, LampState>;
   demoReplay: boolean;
@@ -103,6 +118,7 @@ export interface PresenceReceiptRow {
   sourceMessageId: string;
   recentAttendance: boolean[];
   company: string[];
+  lifetimePromisesKept?: number;
 }
 
 export interface ViewerSample {
@@ -136,6 +152,12 @@ export interface PresenceReceipt {
   sky?: {
     collected: Array<{ constellation: string; fragment: string }>;
     tonight: { constellation: string; fragment: string; stars: string[] } | null;
+  };
+  promises?: {
+    promisedTonight: number;
+    promisedLastStream: number;
+    kept: number;
+    keptNames: string[];
   };
   ledger: { startPrevHash: string; endHash: string; eventCount: number };
   sealedAt: string;
