@@ -5,6 +5,7 @@ import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import type { DerivedState } from "./types.js";
 import type { MomentLevel, OverlayLayout } from "./config.js";
+import type { SettingsManager } from "./settings.js";
 
 const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -22,11 +23,12 @@ export interface OverlayServer {
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
 interface SetupAuth { createAuthorizationUrl: () => string; connected: () => boolean }
 
-export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true): Promise<OverlayServer> {
+export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true, settingsManager?: SettingsManager): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
-  const packet = (state: DerivedState): string => JSON.stringify({ type: "state", state, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, promisesEnabled, moments, preferences });
+  const runtime = () => settingsManager?.get() ?? { layout, thresholdN, showNames, threads: threadsEnabled, sky: skyEnabled, wind: windEnabled, promises: promisesEnabled, moments };
+  const packet = (state: DerivedState): string => { const settings = runtime(); return JSON.stringify({ type: "state", state, layout: settings.layout, thresholdN: settings.thresholdN, showNames: settings.showNames, threadsEnabled: settings.threads, skyEnabled: settings.sky, windEnabled: settings.wind, promisesEnabled: settings.promises, moments: settings.moments, settings, preferences }); };
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;
@@ -67,9 +69,12 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
   });
   sockets.on("connection", (socket) => {
     socket.send(packet(getState()));
-    socket.on("message", (raw) => {
+    socket.on("message", async (raw) => {
       try {
-        const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown; rollCall?: unknown };
+        const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown; rollCall?: unknown; settings?: unknown };
+        if (message.type === "settings" && settingsManager && message.settings && typeof message.settings === "object") {
+          await settingsManager.update(message.settings as Parameters<SettingsManager["update"]>[0]); sendState(); return;
+        }
         if (message.type === "roll-call-called") {
           const stream = getState().currentStream;
           if (preferences.rollCall && stream) {

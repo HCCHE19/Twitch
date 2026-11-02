@@ -1,14 +1,20 @@
 import { once } from "node:events";
+import { mkdtemp } from "node:fs/promises";
 import { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import WebSocket from "ws";
 import { describe, expect, it } from "vitest";
 import { startOverlayServer } from "../src/overlay-server.js";
 import { emptyState } from "../src/presence.js";
+import { createSettingsManager } from "../src/settings.js";
 
 describe("overlay server", () => {
   it("serves the overlay and sends an initial state snapshot", async () => {
     const state = emptyState();
-    const overlay = await startOverlayServer(() => state, 0, "top", 10, true, false, false, false, "normal", { createAuthorizationUrl: () => "https://id.twitch.tv/oauth2/authorize?test=1", connected: () => false });
+    const settingsDirectory = await mkdtemp(join(tmpdir(), "lamplight-overlay-settings-"));
+    const settings = await createSettingsManager({ layout: "top", thresholdN: 10, showNames: true, threads: false, sky: false, wind: false, promises: true, moments: "normal" }, join(settingsDirectory, "settings.json"));
+    const overlay = await startOverlayServer(() => state, 0, "top", 10, true, false, false, false, "normal", { createAuthorizationUrl: () => "https://id.twitch.tv/oauth2/authorize?test=1", connected: () => false }, true, settings);
     const port = (overlay.server.address() as AddressInfo).port;
     const response = await fetch(`http://127.0.0.1:${port}/overlay/`);
     expect(response.status).toBe(200);
@@ -25,6 +31,9 @@ describe("overlay server", () => {
     socket.send(JSON.stringify({ type: "preferences", compact: true, hidden: true }));
     const [updated] = await once(socket, "message") as [Buffer];
     expect(JSON.parse(updated.toString())).toMatchObject({ preferences: { compact: true, hidden: true } });
+    socket.send(JSON.stringify({ type: "settings", settings: { sky: true, thresholdN: 3, layout: "bottom" } }));
+    const [settingsUpdated] = await once(socket, "message") as [Buffer];
+    expect(JSON.parse(settingsUpdated.toString())).toMatchObject({ settings: { sky: true, thresholdN: 3, layout: "bottom" }, skyEnabled: true, thresholdN: 3, layout: "bottom" });
     socket.close();
     await once(socket, "close");
     await overlay.close();

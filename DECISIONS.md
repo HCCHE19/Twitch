@@ -269,3 +269,10 @@
 - Implementation: total, current, and best counts rebuild from offline ledger events. Solid threads show streak two or higher; one-sided waiting threads are dashed and do not disclose who is absent. Local receipts project the just-ending stream into all three counts.
 - Decision: thread adjacency may move at most two established lamps, at most once per five seconds, and never above thirty lamps; longer connections use arcs over no more than three intervening lamps.
 - Implementation: arrivals are held for a 1.5-second display batch, the final order is computed once, existing lamps ease for 300ms, then arrivals drop in sequence. If a safe slide is unavailable the arrival remains appended; relationships spanning more than three lamps stay in the receipt but are not drawn.
+
+## 2026-11-02 — Live local settings
+
+- Decision: SKY, THREADS, WIND, PROMISES, SHOW_NAMES, MOMENTS, THRESHOLD_N, and LAYOUT belong on the localhost control page and apply without a restart.
+- Implementation: validated settings are stored owner-only in gitignored `data/settings.json`. The server broadcasts each change immediately, and event handlers read the current values before accepting commands, awarding fragments, or sealing receipts.
+- Decision: `.env` is for Twitch credentials and the local server port; old feature values may seed a first run but are not the ongoing source of truth.
+- Implementation: `.env.example` now contains only the optional token, client id, client secret, channel login, and `PORT`. Built-in defaults remain safe when no legacy value or settings file exists.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadMomentLevel, loadPromisesEnabled, loadShowNames, loadThresholdN, loadThreadsEnabled } from "../src/config.js";
+import { loadMomentLevel, loadPort, loadPromisesEnabled, loadShowNames, loadThresholdN, loadThreadsEnabled } from "../src/config.js";
 
 describe("overlay feature configuration", () => {
   it("parses threshold and name visibility overrides", async () => {
@@ -14,5 +14,7 @@ describe("overlay feature configuration", () => {
     await expect(loadMomentLevel({ MOMENTS: "loud" })).rejects.toThrow("MOMENTS");
     await expect(loadPromisesEnabled({})).resolves.toBe(true);
     await expect(loadPromisesEnabled({ PROMISES: "false" })).resolves.toBe(false);
+    await expect(loadPort({ PORT: "8790" })).resolves.toBe(8790);
+    await expect(loadPort({ PORT: "70000" })).rejects.toThrow("PORT");
   });
 });

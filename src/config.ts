@@ -129,3 +129,10 @@ export async function loadIgnoredUsers(path = "config/ignored-users.json"): Prom
   }
   return values.map((value) => value.toLowerCase());
 }
+
+export async function loadPort(env = process.env): Promise<number> {
+  const values = await loadEnvValues(env);
+  const port = Number(values.PORT || "8787");
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("PORT must be an integer from 1 to 65535");
+  return port;
+}
