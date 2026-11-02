@@ -6,6 +6,7 @@ import { openingCardFrame, returnGreeting } from "/shared/memory.js";
 import { rollCallFrame } from "/shared/roll-call.js";
 import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
+import { neighbourWelcome } from "/shared/neighbours.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -74,6 +75,7 @@ function render(time) {
     );
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
+    const welcomeEffects = neighbourWelcome(visible, state.currentStream, Date.now());
     for (const [itemIndex, item] of layout(visible).entries()) {
       if (item.lamp) {
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
@@ -83,10 +85,11 @@ function render(time) {
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
         const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, Date.now());
+        const welcome = reducedMotion.matches ? undefined : welcomeEffects[item.lamp.userId];
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
         const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
-        drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25), glowAlpha
+        drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0
         });
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);

@@ -48,6 +48,7 @@ The same private page can start a roll call and mark the highlighted lamp called
 Set `THRESHOLD_N` in `.env` (default `10`) to choose when the once-per-stream left-to-right lamp wave runs.
 Set `SHOW_NAMES=false` to hide every name plate and return greeting on the overlay; receipt names are unaffected.
 Name plates support Japanese and Chinese display names through system-font fallbacks and bounded text fitting.
+When a lamp lights for the first time ever, its rendered neighbours briefly tilt and brighten toward it in welcome.
 
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 

@@ -96,7 +96,7 @@ export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, 
   halo.addColorStop(.48, `hsla(30,${haloSaturation * .80}%,54%,${(.025 + brightness * .055) * glowAlpha})`); halo.addColorStop(1, "rgba(24,12,4,0)");
   context.fillStyle = halo; context.beginPath(); context.arc(0, -size * .43, size * 2.5 * glowScale, 0, Math.PI * 2); context.fill();
 
-  context.rotate((essential ? 0 : lamp.tilt) * Math.PI / 180);
+  context.rotate(((essential ? 0 : lamp.tilt) + (options.extraTilt ?? 0)) * Math.PI / 180);
   if (lamp.base === 0) {
     context.fillStyle = "rgba(72,42,22,.98)"; context.beginPath(); context.roundRect(-size * .27, -size * .12, size * .54, size * .18, size * .025); context.fill();
     context.strokeStyle = "rgba(218,151,84,.62)"; context.lineWidth = Math.max(1, size * .012); context.stroke();

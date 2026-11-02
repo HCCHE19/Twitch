@@ -129,3 +129,9 @@
 **Decided:** Preserve the locked plate geometry by fitting long labels inside a bounded width, reducing only font size to a 9px floor. After Space Grotesk, explicitly prefer macOS Japanese/Chinese system fonts (`Hiragino Sans`, `PingFang SC`) before general system fallbacks.
 
 **Action:** Added shared plate-fitting metrics, explicit CJK fallbacks, overlay integration, and Japanese/Chinese tests asserting text remains within the plate bounds.
+
+## 2026-11-02 — Neighbour welcome
+
+**Decided:** For two seconds after a first-ever lamp lights, only its immediate rendered neighbours tilt four degrees toward it and receive a modest brightness/glow lift, then settle. It is overlay-only, selects the newest simultaneous newcomer, and is suppressed by reduced-motion mode.
+
+**Action:** Added deterministic neighbour selection, directional effects, renderer tilt support, overlay integration, and adjacency/duration tests.
