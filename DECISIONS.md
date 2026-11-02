@@ -237,3 +237,11 @@
 **Decided:** Completion handoff must have no invisible frame: keep the travelling constellation on the unrestricted main canvas, continuously interpolate its centre and scale to the production panel glyph box, and crossfade into the panel rendering so travel alpha plus panel alpha remains one. After completion, lock that constellation as the panel's display focus for the rest of the stream and through offline. Release the display-only lock only when a different `stream.online` ID appears. The locked panel shows the full solid constellation, caption `<name>, complete`, and the ringed arc star. Apply the lock to quiet, normal, and big.
 
 **Action:** Added complementary travel/panel crossfade values, an overlay display lock keyed by stream ID, completed-glyph captions, and tests proving continuous handoff, persistent complete focus through offline, and release on the next stream.
+
+## 2026-11-02 — One-click local Twitch authorization
+
+**Decided:** Use Twitch's server-side authorization-code flow with exact redirect `http://localhost:3939`, scope `user:read:chat`, a random expiring `state` value, and server-side code exchange. Store access/refresh tokens only in gitignored `data/auth.json` with owner-only permissions, refresh five minutes before expiry, rotate refresh tokens, and never put credentials in browser responses or logs. Preserve `TWITCH_ACCESS_TOKEN` as the unchanged fallback when no auth file exists.
+
+**Decided:** The local overlay HTTP server must start before Twitch authentication so `/setup` remains reachable without a token. With neither stored nor env token, print only `open http://localhost:8787/setup to connect Twitch` and wait for the callback; after successful exchange, continue startup without a restart.
+
+**Action:** Added the setup page and protected start/status routes, a localhost callback server, atomic token persistence and refresh scheduling, mutable live credentials for API calls, setup-first startup ordering, and tests for env fallback, CSRF state, code exchange, browser secrecy, local persistence, expiry refresh, and setup routes. Verified the implementation against Twitch's official authorization-code and refresh documentation.

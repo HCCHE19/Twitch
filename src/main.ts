@@ -1,4 +1,4 @@
-import { loadConfig, loadIgnoredUsers, loadMomentLevel, loadOverlayLayout, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled, loadWindEnabled } from "./config.js";
+import { loadIgnoredUsers, loadMomentLevel, loadOverlayLayout, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled, loadWindEnabled } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
@@ -8,9 +8,10 @@ import { getLiveStream, validateToken } from "./twitch-api.js";
 import { startViewerSampler, viewerSampleEnvelope } from "./viewer-sampling.js";
 import { applyThreadCommand, applyThreadReunion } from "./threads.js";
 import { createSkyFragmentEnvelope } from "./sky.js";
+import { createAuthManager } from "./auth.js";
 
 async function main(): Promise<void> {
-  const config = await loadConfig();
+  const auth = await createAuthManager();
   const ignoredUsers = await loadIgnoredUsers();
   const layout = await loadOverlayLayout();
   const thresholdN = await loadThresholdN();
@@ -19,12 +20,18 @@ async function main(): Promise<void> {
   const skyEnabled = await loadSkyEnabled();
   const windEnabled = await loadWindEnabled();
   const moments = await loadMomentLevel();
+  const entries = await readLedger("data/events.jsonl");
+  const state = rebuildState(entries, { broadcasterLogin: auth.channelLogin, ignoredUsers });
+  await writeState("data/state.json", state);
+  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, moments, auth);
+  await auth.startCallbackServer();
+  console.log(`[overlay] http://localhost:8787/overlay/ (${layout})`);
+  let config = auth.config();
+  if (!config) { console.log("open http://localhost:8787/setup to connect Twitch"); config = await auth.waitForConfig(); }
   const identity = await validateToken(config);
   console.log(`[auth] validated broadcaster ${identity.login}; scope user:read:chat; expires in ${Math.floor(identity.expiresIn / 3600)}h`);
   const live = await getLiveStream(config);
   console.log(live ? `[stream] live since ${live.startedAt} (stream ${live.id})` : "[stream] currently offline");
-  const entries = await readLedger("data/events.jsonl");
-  const state = rebuildState(entries, { broadcasterLogin: config.channelLogin, ignoredUsers });
   if (live && !state.currentStream) {
     const recoveryEnvelope = {
       metadata: {
@@ -42,8 +49,6 @@ async function main(): Promise<void> {
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
-  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, moments);
-  console.log(`[overlay] http://localhost:8787/overlay/ (${layout})`);
 
   let mutationQueue = Promise.resolve();
   const serialize = async (operation: () => Promise<void>): Promise<void> => {
@@ -134,7 +139,7 @@ async function main(): Promise<void> {
     onStream: (type, event) => console.log(`[stream] ${type}: ${JSON.stringify(event)}`)
   });
   client.start();
-  const stop = async (): Promise<void> => { sampler.stop(); client.stop(); await overlay.close(); process.exitCode = 0; };
+  const stop = async (): Promise<void> => { sampler.stop(); client.stop(); await auth.close(); await overlay.close(); process.exitCode = 0; };
   process.once("SIGINT", () => void stop());
   process.once("SIGTERM", () => void stop());
 }

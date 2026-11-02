@@ -9,7 +9,7 @@ export interface Config {
 export type OverlayLayout = "bottom" | "top";
 export type MomentLevel = "quiet" | "normal" | "big";
 
-function parseEnvFile(source: string): Record<string, string> {
+export function parseEnvFile(source: string): Record<string, string> {
   const values: Record<string, string> = {};
   for (const rawLine of source.split(/\r?\n/u)) {
     const line = rawLine.trim();
@@ -24,6 +24,13 @@ function parseEnvFile(source: string): Record<string, string> {
     values[key] = value;
   }
   return values;
+}
+
+export async function loadEnvValues(env = process.env): Promise<Record<string, string>> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  return new Proxy(fileValues, { get: (target, key: string) => Object.hasOwn(env, key) ? env[key]?.trim() ?? "" : target[key]?.trim() || "" });
 }
 
 export async function loadConfig(env = process.env): Promise<Config> {

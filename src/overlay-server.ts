@@ -20,8 +20,9 @@ export interface OverlayServer {
 }
 
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
+interface SetupAuth { createAuthorizationUrl: () => string; connected: () => boolean }
 
-export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal"): Promise<OverlayServer> {
+export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
@@ -29,6 +30,12 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;
+    if (requestPath === "/auth/start") {
+      try { response.writeHead(302, { Location: setupAuth?.createAuthorizationUrl() ?? "/setup?error=unavailable", "Cache-Control": "no-store" }).end(); }
+      catch { response.writeHead(302, { Location: "/setup?error=config", "Cache-Control": "no-store" }).end(); }
+      return;
+    }
+    if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false })); return; }
     const receiptRequest = requestPath.startsWith("/receipts/");
     const relative = requestPath === "/" || requestPath === "/overlay" || requestPath === "/overlay/"
       ? "overlay/index.html"
@@ -36,6 +43,8 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
         ? "control/index.html"
         : requestPath === "/sky-preview" || requestPath === "/sky-preview/"
           ? "sky-preview/index.html"
+        : requestPath === "/setup" || requestPath === "/setup/"
+          ? "setup/index.html"
         : requestPath.replace(/^\/+/, "");
     const safe = normalize(relative);
     if (safe.startsWith("..")) { response.writeHead(403).end("Forbidden"); return; }
