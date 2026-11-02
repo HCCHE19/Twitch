@@ -191,3 +191,11 @@
 **Decided:** The sky should feel quiet and precious rather than diagrammatic or neon: thin rounded lines, small soft stars with restrained seeded brightness variation, pale warm-white collected regions, barely visible cool dotted missing regions, and glow only after all six fragments complete a constellation.
 
 **Action:** Exported the shared glyph renderer, applied the calm styling to preview, receipt, and overlay together, added the responsive preview grid and state comparison, registered the clean route, and added a route-level test.
+
+## 2026-11-02 — Night-sky renderer pass
+
+**Decided:** Change rendering only. Preserve every sky selection, fragment, ledger, rebuild, receipt-data, and threshold rule. Fit each constellation to roughly 70% of its card while preserving celestial aspect ratio. Use d3-celestial catalogue magnitudes to assign relative bright, mid, and faint tiers; only bright stars receive a soft radial glow and restrained four-point sparkle. Seed 20–30 faint background stars from the constellation name.
+
+**Decided:** Untouched constellations show low-alpha stars and no lines. In-progress constellations show collected regions as rounded 1.5px pale warm-white lines with soft glow and missing regions as visible cool dotted lines. Complete constellations add a subtle whole-shape halo and warmer finish. Replace the unreadable twelve tiny drawings in the overlay panel with twelve status stars in an arc; only the current incomplete constellation gets a mini drawing and caption.
+
+**Action:** Reworked only the shared canvas renderer and preview composition. Receipt rendering now includes the same seeded sky field, the overlay panel uses the status-star arc, and `/sky-preview/` retains receipt-size, panel, and Leo-state sections.

@@ -1,4 +1,4 @@
-import { drawSkyGlyph, SKY_NAMES } from "/shared/sky.js";
+import { drawSkyGlyph, drawSkyPanel, SKY_NAMES } from "/shared/sky.js";
 
 const all=["A","B","C","D","E","F"];
 
@@ -17,5 +17,6 @@ function card(name,canvas,className="glyph-card",label=name){
 }
 
 for(const name of SKY_NAMES)document.querySelector("#receipt-grid").append(card(name,canvasFor(name,all,180,60)));
-for(const name of SKY_NAMES)document.querySelector("#tiny-grid").append(card(name,canvasFor(name,all,22,16,false),"tiny-card"));
+const panel=document.querySelector("#panel"),panelContext=panel.getContext("2d");panelContext.scale(2,2);
+drawSkyPanel(panelContext,[{constellation:"Leo",fragment:"A"},{constellation:"Leo",fragment:"B"},{constellation:"Leo",fragment:"C"},{constellation:"Taurus",fragment:"A"},{constellation:"Taurus",fragment:"B"},{constellation:"Taurus",fragment:"C"},{constellation:"Taurus",fragment:"D"},{constellation:"Taurus",fragment:"E"},{constellation:"Taurus",fragment:"F"}],0,0,230,100,false);
 for(const state of [{label:"Untouched",fragments:[]},{label:"Three of six",fragments:["A","B","C"]},{label:"Complete",fragments:all}])document.querySelector("#states").append(card("Leo",canvasFor("Leo",state.fragments,180,70),"state-card",state.label));
