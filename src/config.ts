@@ -65,11 +65,13 @@ export async function loadOverlayLayout(env = process.env): Promise<OverlayLayou
   return layout;
 }
 
-export async function loadThresholdN(env = process.env): Promise<number> {
+export async function loadThresholdN(env = process.env): Promise<number | "auto"> {
   let fileValues: Record<string, string> = {};
   try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-  const threshold = Number(env.THRESHOLD_N?.trim() || fileValues.THRESHOLD_N?.trim() || "10");
+  const value = env.THRESHOLD_N?.trim() || fileValues.THRESHOLD_N?.trim() || "auto";
+  if (value === "auto") return "auto";
+  const threshold = Number(value);
   if (!Number.isInteger(threshold) || threshold < 1) throw new Error("THRESHOLD_N must be a positive integer");
   return threshold;
 }

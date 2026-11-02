@@ -1,3 +1,4 @@
+import { thresholdEnvelope } from "./sky-threshold.js";
 import { loadIgnoredUsers, loadMomentLevel, loadOverlayLayout, loadPort, loadPromisesEnabled, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled, loadWindEnabled } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
@@ -52,6 +53,14 @@ async function main(): Promise<void> {
     state.lastHash = recoveryEntry.hash;
     entries.push(recoveryEntry);
   }
+  const lockThreshold = async (timestamp: string): Promise<void> => {
+    const envelope = thresholdEnvelope(state, settings.get().thresholdN, timestamp);
+    if (!envelope) return;
+    const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
+    reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
+    state.lastHash = entry.hash; entries.push(entry);
+  };
+  await lockThreshold(new Date().toISOString());
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
 
@@ -109,6 +118,7 @@ async function main(): Promise<void> {
         reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
         state.lastHash = entry.hash;
         entries.push(entry);
+        await lockThreshold(envelope.metadata.message_timestamp);
         const promiseEnvelope = applyPromiseCommand(state, envelope, { enabled: settings.get().promises, broadcasterLogin: config.channelLogin, ignoredUsers });
         if (promiseEnvelope) {
           const promiseEntry = await appendEnvelope("data/events.jsonl", promiseEnvelope, state.lastHash);
@@ -136,7 +146,7 @@ async function main(): Promise<void> {
         }
         const weightedAfter = weightedLampCount(state);
         const liveSettings = settings.get();
-        if (liveSettings.sky && weightedBefore < liveSettings.thresholdN && weightedAfter >= liveSettings.thresholdN) {
+        if (liveSettings.sky && weightedBefore < (state.currentStream?.thresholdN ?? 10) && weightedAfter >= (state.currentStream?.thresholdN ?? 10)) {
           const skyEnvelope = createSkyFragmentEnvelope(state, envelope.metadata.message_timestamp);
           if (skyEnvelope) {
             const skyEntry = await appendEnvelope("data/events.jsonl", skyEnvelope, state.lastHash);

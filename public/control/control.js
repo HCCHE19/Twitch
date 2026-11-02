@@ -12,8 +12,8 @@ function send() {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "preferences", compact: compact.checked, hidden: hidden.checked, rollCall: rollCall.checked }));
 }
 function sendSettings() {
-  const thresholdN = Number(fields.thresholdN.value);
-  if (!Number.isInteger(thresholdN) || thresholdN < 1 || socket?.readyState !== WebSocket.OPEN) return;
+  const thresholdN = fields.thresholdN.value.trim().toLowerCase() === "auto" ? "auto" : Number(fields.thresholdN.value);
+  if ((thresholdN !== "auto" && (!Number.isInteger(thresholdN) || thresholdN < 1)) || socket?.readyState !== WebSocket.OPEN) return;
   socket.send(JSON.stringify({ type: "settings", settings: { sky: fields.sky.checked, threads: fields.threads.checked, wind: fields.wind.checked, promises: fields.promises.checked, showNames: fields.showNames.checked, moments: fields.moments.value, thresholdN, layout: fields.layout.value } }));
 }
 function updateCurrent() {
@@ -33,6 +33,7 @@ function connect() {
     if (packet.type === "state") {
       latest = packet; compact.checked = Boolean(packet.preferences?.compact); hidden.checked = Boolean(packet.preferences?.hidden); rollCall.checked = Boolean(packet.preferences?.rollCall);
       const settings = packet.settings; if (settings) { for (const key of ["sky", "threads", "wind", "promises", "showNames"]) fields[key].checked = Boolean(settings[key]); fields.moments.value = settings.moments; fields.thresholdN.value = String(settings.thresholdN); fields.layout.value = settings.layout; }
+      document.querySelector("#threshold-current").textContent = `Auto: ${packet.autoThresholdN ?? 10} lamps. ${packet.state?.currentStream ? `This stream: ${packet.thresholdN} (fixed).` : `Next stream: ${packet.thresholdN}.`}`;
       updateCurrent();
     }
   });

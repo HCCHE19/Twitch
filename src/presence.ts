@@ -1,5 +1,7 @@
 import type { DerivedState, EventSubEnvelope } from "./types.js";
 
+import { resolveThreshold } from "./sky-threshold.js";
+
 export const DEFAULT_IGNORED_USERS = ["nightbot", "streamelements", "streamlabs", "fossabot", "moobot", "sery_bot"];
 
 export function emptyState(demoReplay = false): DerivedState {
@@ -92,6 +94,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   const event = envelope.payload.event ?? {};
 
   if (type === "stream.online" || type === "lamplight.stream.recovered") {
+    if (state.currentStream && state.currentStream.id === event.id) return state;
     const previousStreamId = state.completedStreamIds.at(-1);
     const previousPromiseUserIds = previousStreamId ? state.promises.filter((promise) => promise.streamId === previousStreamId).map((promise) => promise.userId) : [];
     state.openingCard = previousStreamId ? {
@@ -111,7 +114,14 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     state.promiseKeptUserIds = [];
     state.promiseKeptAtByUserId = {};
     state.closingHintAt = null;
-    state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
+    state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [], thresholdN: resolveThreshold(state, "auto") };
+    return state;
+  }
+  if (type === "lamplight.sky.threshold") {
+    if (state.currentStream && state.currentStream.id === event.stream_id && state.currentStream.thresholdMode === undefined && Number.isInteger(event.threshold) && Number(event.threshold) > 0) {
+      state.currentStream.thresholdN = Number(event.threshold);
+      state.currentStream.thresholdMode = event.mode === "auto" ? "auto" : "manual";
+    }
     return state;
   }
   if (type === "stream.offline" || type === "lamplight.stream.finalized") {

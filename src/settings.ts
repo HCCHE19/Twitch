@@ -10,7 +10,7 @@ export interface RuntimeSettings {
   promises: boolean;
   showNames: boolean;
   moments: MomentLevel;
-  thresholdN: number;
+  thresholdN: number | "auto";
   layout: OverlayLayout;
 }
 
@@ -29,7 +29,7 @@ export function validateSettings(value: unknown, fallback: RuntimeSettings): Run
   const boolean = (key: keyof RuntimeSettings): boolean => typeof input[key] === "boolean" ? input[key] as boolean : fallback[key] as boolean;
   const moments = input.moments === "quiet" || input.moments === "normal" || input.moments === "big" ? input.moments : fallback.moments;
   const layout = input.layout === "top" || input.layout === "bottom" ? input.layout : fallback.layout;
-  const thresholdN = typeof input.thresholdN === "number" && Number.isInteger(input.thresholdN) && input.thresholdN > 0 ? input.thresholdN : fallback.thresholdN;
+  const thresholdN = input.thresholdN === "auto" ? "auto" : typeof input.thresholdN === "number" && Number.isInteger(input.thresholdN) && input.thresholdN > 0 ? input.thresholdN : fallback.thresholdN;
   return { sky: boolean("sky"), threads: boolean("threads"), wind: boolean("wind"), promises: boolean("promises"), showNames: boolean("showNames"), moments, thresholdN, layout };
 }
 

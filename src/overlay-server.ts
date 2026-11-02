@@ -1,3 +1,4 @@
+import { resolveThreshold } from "./sky-threshold.js";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
@@ -23,12 +24,12 @@ export interface OverlayServer {
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
 interface SetupAuth { createAuthorizationUrl: () => string; connected: () => boolean }
 
-export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true, settingsManager?: SettingsManager): Promise<OverlayServer> {
+export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN: number | "auto" = "auto", showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true, settingsManager?: SettingsManager): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
   const runtime = () => settingsManager?.get() ?? { layout, thresholdN, showNames, threads: threadsEnabled, sky: skyEnabled, wind: windEnabled, promises: promisesEnabled, moments };
-  const packet = (state: DerivedState): string => { const settings = runtime(); return JSON.stringify({ type: "state", state, layout: settings.layout, thresholdN: settings.thresholdN, showNames: settings.showNames, threadsEnabled: settings.threads, skyEnabled: settings.sky, windEnabled: settings.wind, promisesEnabled: settings.promises, moments: settings.moments, settings, preferences }); };
+  const packet = (state: DerivedState): string => { const settings = runtime(); return JSON.stringify({ type: "state", state, layout: settings.layout, thresholdN: state.currentStream?.thresholdN ?? resolveThreshold(state, settings.thresholdN), autoThresholdN: resolveThreshold(state, "auto"), showNames: settings.showNames, threadsEnabled: settings.threads, skyEnabled: settings.sky, windEnabled: settings.wind, promisesEnabled: settings.promises, moments: settings.moments, settings, preferences }); };
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;

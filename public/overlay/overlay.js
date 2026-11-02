@@ -1,3 +1,4 @@
+import { skyProgressFrame } from "/shared/sky-progress.js";
 import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
 import { rowLayout, selectVisibleLamps } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
@@ -9,7 +10,7 @@ import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
 import { drawThreadLines, placeThreadArrival, threadVisuals } from "/shared/threads.js";
-import { drawSkyGlyph, drawSkyOverlay, updateSkyDisplayLock } from "/shared/sky.js";
+import { drawSkyGlyph, drawSkyOverlay, skyPanelTransitionAt, updateSkyDisplayLock } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 import { animateRowLayout, reconcileLampOrder, releaseArrivalBatch } from "/shared/row-motion.js";
@@ -40,6 +41,7 @@ let arrivalBatchStartedAt = null;
 const arrivalStarts = new Map();
 let lastThreadSlideAt = null;
 let skyDisplayLock = null;
+let skyProgressTracker = null;
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
@@ -98,7 +100,7 @@ function render(time) {
   const closingThreadCount = threadsEnabled ? (state?.threads ?? []).filter(thread => thread.userIds.every(id => state?.closingMoment?.litUserIds.includes(id))).length : 0;
   const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches, closingThreadCount);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, promisesEnabled ? state?.promiseKeptUserIds : [], threadsEnabled ? state?.threads : [], renderNow);
-  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock, 1250, reducedMotion.matches ? 0 : opening.panelPulse ?? 0);
+
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
@@ -256,6 +258,14 @@ function render(time) {
     }
     for (const [userId, startedAt] of arrivalStarts) if (renderNow - startedAt > 1_100) arrivalStarts.delete(userId);
   }
+  if (skyEnabled && state) {
+    const landed = opening.active ? [] : (state.currentStream?.litUserIds ?? []).filter(id => !queuedArrivals.has(id) && (arrivalStarts.get(id) === undefined || renderNow >= arrivalStarts.get(id) + (reducedMotion.matches || momentLevel === "quiet" ? 0 : 350)));
+    const model = skyPanelTransitionAt(state.skyFragments, renderNow, momentLevel, reducedMotion.matches, skyDisplayLock).transition.rendered;
+    const complete = Boolean(skyDisplayLock && model.counts[skyDisplayLock.constellation] === 6);
+    const progress = skyProgressFrame(skyProgressTracker, state, landed, thresholdN, renderNow, complete, reducedMotion.matches);
+    skyProgressTracker = progress.tracker;
+    drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock, 1250, reducedMotion.matches ? 0 : opening.panelPulse ?? 0, progress);
+  }
   if (!reducedMotion.matches) animationFrame = requestAnimationFrame(render);
 }
 
@@ -285,6 +295,10 @@ function connect() {
       promisesEnabled = packet.promisesEnabled !== false;
       momentLevel = ["quiet", "normal", "big"].includes(packet.moments) ? packet.moments : "normal";
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
+      if (reducedMotion.matches && skyEnabled && state.currentStream) {
+        // Complete batched landings and reset the static full-bar hold without an animation loop.
+        for (const delay of [2000, 2800, 4300]) setTimeout(drawOnce, delay);
+      }
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
       if (reducedMotion.matches && Object.values(state.threadReunionAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);

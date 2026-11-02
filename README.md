@@ -27,6 +27,8 @@ Open `http://localhost:8787/control/` to change Sky, Threads, Wind, Promises, na
 - **Moments:** arrival and fragment effects stay inside the lamp band and corner panel. `quiet`, `normal`, and `big` change intensity; reduced-motion preferences remove travel and bounce.
 - **Threads:** a lit viewer can use `!tie name`, `!tie @name`, or bare `!tie` for the lamp immediately left. Mutual ties persist; `!untie` removes them; streaks count consecutive streams together. The bot never replies in chat.
 
+The fragment threshold defaults to `auto`: `max(3, round(median attendance of the last five completed streams / 2.5))`, or 10 with no history. The control page shows the computed number; type a positive integer for a manual threshold. The value locks for the whole stream and survives restart; changes apply next stream. The night demo uses manual 3. The corner panel counts lamps as they land (kept promises add two), softly pulses a full bar when a fragment is earned, then resets. Progress hides when this stream completes a constellation. Awards remain limited to one fragment per stream.
+
 The broadcaster can type `!closing` to show the quiet `!back` invitation. It otherwise appears only after 90% of the median duration of the last five completed streams, and only when that median is at least 30 minutes. On dense rows it sits above the sill end, clear of the lamps.
 
 When Twitch sends `stream.offline`, Lamplight writes private JSON and HTML to `receipts/`. If that event never arrives, run `npm run finalize`. Verify the ledger and receipt with `npm run verify -- receipts/<stream-id>.json`; rebuild derived state with `npm run rebuild`. These commands, the control page, `npm run privacy:migrate`, and all feature toggles are optional.

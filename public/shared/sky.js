@@ -1,3 +1,4 @@
+import { drawSkyProgress } from "./sky-progress.js";
 // Numeric sky positions are selected from d3-celestial's constellation line data
 // (BSD-3-Clause): https://github.com/ofrohn/d3-celestial/blob/master/data/constellations.lines.json
 // Magnitude tiers use the matching d3-celestial star catalogue entries:
@@ -127,10 +128,11 @@ export function skyPanelTransitionAt(fragments=[],now=Date.now(),moments="normal
   return {recent,isComplete,fragmentFrame,completionFrame,transition:skyMomentTransition(fragments,!holdRecent,displayLock?.constellation??null)};
 }
 
-export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0) {
+export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0,progress=null) {
   const fragments=state?.skyFragments??[],{recent,isComplete,fragmentFrame,completionFrame,transition}=skyPanelTransitionAt(fragments,now,moments,reducedMotion,displayLock,completionDelay);
   const enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18;
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
+  drawSkyProgress(ctx,progress,x,y+panelH,panelW);
   if(openingPulse>0){ctx.save();ctx.strokeStyle=`rgba(239,222,188,${openingPulse*.22})`;ctx.lineWidth=1.5;ctx.shadowColor="rgba(239,222,188,.25)";ctx.shadowBlur=12*openingPulse;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.stroke();ctx.restore()}
   if(completionFrame?.active&&completionFrame.crossfade>0&&!completionFrame.settled){ctx.save();ctx.globalAlpha=completionFrame.crossfade;drawSkyPanel(ctx,transition.after,x,y,panelW,panelH,enlarged);ctx.restore()}
   if(completionFrame?.panelPulse>0){ctx.save();const pulse=completionFrame.panelPulse,glow=ctx.createRadialGradient(x+panelW*.28,y+panelH*.45,0,x+panelW*.28,y+panelH*.45,panelW*.42);glow.addColorStop(0,`rgba(248,231,196,${pulse*.16})`);glow.addColorStop(.55,`rgba(151,203,203,${pulse*.08})`);glow.addColorStop(1,"rgba(120,180,185,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.fill();ctx.restore()}

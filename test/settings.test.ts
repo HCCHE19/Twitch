@@ -17,5 +17,7 @@ describe("live settings", () => {
     await manager.update({ sky: true, threads: true, thresholdN: 3, layout: "top", moments: "quiet" });
     expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({ sky: true, threads: true, thresholdN: 3, layout: "top", moments: "quiet" });
     const reloaded = await createSettingsManager({ ...defaults, sky: false }, path); expect(reloaded.get()).toMatchObject({ sky: true, threads: true, thresholdN: 3, layout: "top", moments: "quiet" });
+    await reloaded.update({ thresholdN: "auto" });
+    expect((await createSettingsManager(defaults, path)).get().thresholdN).toBe("auto");
   });
 });

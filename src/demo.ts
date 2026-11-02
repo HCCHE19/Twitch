@@ -1,3 +1,4 @@
+import { thresholdEnvelope } from "./sky-threshold.js";
 import { readFile } from "node:fs/promises";
 import { loadMomentLevel, loadOverlayLayout } from "./config.js";
 import { createFlareEnvelope, emptyState, reduceEnvelope } from "./presence.js";
@@ -77,6 +78,8 @@ for (const envelope of envelopes) {
   const flare = night ? createFlareEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" }) : null;
   const before = new Set(state.currentStream?.litUserIds ?? []);
   reduceEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" });
+  const threshold = thresholdEnvelope(state, night ? 3 : 10, replayEnvelope.metadata.message_timestamp);
+  if (threshold) reduceEnvelope(state, threshold, { broadcasterLogin: "demo_broadcaster" });
   if (night && replayEnvelope.metadata.subscription_type === "channel.chat.message" && state.currentStream) {
     const newlyLit = state.currentStream.litUserIds.find((userId) => !before.has(userId));
     if (newlyLit) applyThreadReunion(state, newlyLit, replayEnvelope.metadata.message_timestamp);

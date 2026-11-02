@@ -38,6 +38,8 @@ export interface LampState {
 }
 
 export interface StreamState {
+  thresholdN?: number;
+  thresholdMode?: "auto" | "manual";
   id: string;
   startedAt: string;
   litUserIds: string[];

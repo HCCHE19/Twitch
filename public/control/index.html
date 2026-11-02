@@ -14,14 +14,15 @@
     <button id="called" type="button" disabled>Mark current lamp called</button>
     <p id="current">No active roll call</p>
     <h2>Settings</h2>
-    <p class="note">Saved locally and applied live. No restart needed.</p>
+    <p class="note">Saved locally. Threshold changes apply next stream; other settings apply live.</p>
     <label><span><strong>Sky</strong><small>Collect and show constellation fragments</small></span><input id="sky" type="checkbox"></label>
     <label><span><strong>Threads</strong><small>Enable !tie and persistent red threads</small></span><input id="threads" type="checkbox"></label>
     <label><span><strong>Wind</strong><small>Let five quick flares lean every flame</small></span><input id="wind" type="checkbox"></label>
     <label><span><strong>Promises</strong><small>Enable !back and kept-return memory</small></span><input id="promises" type="checkbox"></label>
     <label><span><strong>Show names</strong><small>Show name plates at full-size density</small></span><input id="show-names" type="checkbox"></label>
     <label><span><strong>Moments</strong><small>Animation intensity</small></span><select id="moments"><option value="quiet">Quiet</option><option value="normal">Normal</option><option value="big">Big</option></select></label>
-    <label><span><strong>Fragment threshold</strong><small>Weighted lamps needed to earn a fragment</small></span><input id="threshold" type="number" min="1" step="1"></label>
+    <label><span><strong>Fragment threshold</strong><small>Auto or a manual number; changes apply next stream</small></span><input id="threshold" type="text" list="threshold-options" value="auto" aria-label="Fragment threshold: auto or a positive integer"><datalist id="threshold-options"><option value="auto"></datalist></label>
+    <p id="threshold-current" class="note"></p>
     <label><span><strong>Layout</strong><small>Place the single lamp band at the top or bottom</small></span><select id="layout"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
     <p id="status">Connecting</p>
   </main>
