@@ -163,3 +163,17 @@
 **Decided:** Because bare `!untie` is ambiguous with multiple persistent threads, a participant's bare command removes their thread only when exactly one exists; `!untie <display name>` targets a counterpart. Moderators use `!untie Name A | Name B` for an explicit pair, or one name only when that lamp has exactly one thread. Either party and moderators produce the same ledger untie event.
 
 **Action:** Added gated parsing, pending and mutual state, reducer-enforced persistence/cap, rebuild behavior, participant/moderator untie, adjacency preference before hue separation, dashed/solid/waiting-knot rendering, reunion flares, display-name-only receipt pairs, and four ledger-derived night-summary lines. Added disabled-equivalence, mutuality, expiry, eligibility, one-outgoing, matching, untie, persistence, cap, waiting, placement, reunion, receipt, summary and privacy tests.
+
+## 2026-11-02 — Recording fallback v0.3.0
+
+**Decided:** Before lifting the freeze for the sky and wind, tag and push the complete red-thread build as `v0.3.0`. Both new behaviors must default off and must not leave a partial state if they fail verification.
+
+**Action:** Tagged commit `1d03d6e` as `v0.3.0` and pushed the tag before changing code.
+
+## 2026-11-02 — Ledger-derived constellation sky
+
+**Decided:** With `SKY=true`, the first crossing of `THRESHOLD_N` in each stream earns exactly one of 72 non-duplicate zodiac fragments. Selection is seeded by stream ID: prefer an in-progress constellation 70% of the time when both paths exist, otherwise start an untouched constellation, then select a missing letter A–F. A fragment event records the stream, constellation, letter, and stable IDs of every lamp lit at that instant. The ledger is the sole source of sky state; after all 72, selection returns no award.
+
+**Decided:** Use numeric positions selected from d3-celestial's permissively licensed constellation line data as real sky coordinates, then normalize them and generate Lamplight's own connected six-region line construction, visual hierarchy, and motion in code. No image or additional bundled visual asset is introduced. The panel stays top-right, uses low-opacity white, and the short earning animation remains above the lamp band before moving into the panel. Public receipts translate earning-time IDs to display names and never embed those IDs.
+
+**Action:** Added deterministic selection, internal hash-chained events, reducer/rebuild state, gated server processing, top-right panel/opening enlargement/earning and completion animation, receipt sky and summary data, privacy-safe HTML rendering, source documentation, and tests for determinism, weighting, uniqueness, once-per-stream, completion, rebuild, disabled behavior, and public privacy.

@@ -67,6 +67,14 @@ export interface OpeningCard {
   previousUserIds: string[];
 }
 
+export interface SkyFragment {
+  streamId: string;
+  constellation: string;
+  fragment: string;
+  earnedAt: string;
+  litUserIds: string[];
+}
+
 export interface DerivedState {
   schemaVersion: 1;
   lastHash: string;
@@ -79,6 +87,7 @@ export interface DerivedState {
   threads: ThreadState[];
   pendingThreads: PendingThread[];
   threadOutgoingUserIds: string[];
+  skyFragments: SkyFragment[];
   completedStreamIds: string[];
   lamps: Record<string, LampState>;
   demoReplay: boolean;
@@ -122,6 +131,11 @@ export interface PresenceReceipt {
     longestStreakName: string | null;
     longestStreak: number;
     threadsTied: number;
+    fragment?: string | null;
+  };
+  sky?: {
+    collected: Array<{ constellation: string; fragment: string }>;
+    tonight: { constellation: string; fragment: string; stars: string[] } | null;
   };
   ledger: { startPrevHash: string; endHash: string; eventCount: number };
   sealedAt: string;

@@ -9,6 +9,7 @@ import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
 import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
+import { drawSkyOverlay } from "/shared/sky.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -22,6 +23,7 @@ let animationFrame = 0;
 let thresholdN = 10;
 let showNames = true;
 let threadsEnabled = false;
+let skyEnabled = false;
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -47,6 +49,7 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
+  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, Date.now(), selectedLayout);
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
   const rollCall = rollCallFrame(preferences, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
@@ -164,6 +167,7 @@ function connect() {
       thresholdN = packet.thresholdN ?? 10;
       showNames = packet.showNames !== false;
       threadsEnabled = packet.threadsEnabled === true;
+      skyEnabled = packet.skyEnabled === true;
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);

@@ -15,6 +15,7 @@ export function emptyState(demoReplay = false): DerivedState {
     threads: [],
     pendingThreads: [],
     threadOutgoingUserIds: [],
+    skyFragments: [],
     completedStreamIds: [],
     lamps: {},
     demoReplay
@@ -111,6 +112,15 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   if (type === "lamplight.flare") {
     const userId = String(event.user_id ?? "");
     if (userId && state.currentStream?.id === String(event.stream_id ?? "")) state.flareAtByUserId[userId] = envelope.metadata.message_timestamp;
+    return state;
+  }
+  if (type === "lamplight.sky.fragment") {
+    const streamId = String(event.stream_id ?? "");
+    const constellation = String(event.constellation ?? "");
+    const fragment = String(event.fragment ?? "");
+    const litUserIds = Array.isArray(event.lit_user_ids) ? event.lit_user_ids.filter((value): value is string => typeof value === "string") : [];
+    if (!streamId || !constellation || !fragment || state.skyFragments.some((item) => item.streamId === streamId || (item.constellation === constellation && item.fragment === fragment))) return state;
+    state.skyFragments.push({ streamId, constellation, fragment, earnedAt: envelope.metadata.message_timestamp, litUserIds });
     return state;
   }
   if (type === "lamplight.thread.tied") {

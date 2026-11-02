@@ -1,4 +1,4 @@
-import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadShowNames, loadThresholdN, loadThreadsEnabled } from "./config.js";
+import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
@@ -7,6 +7,7 @@ import { createReceipt, writeReceiptFiles } from "./receipt.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 import { startViewerSampler, viewerSampleEnvelope } from "./viewer-sampling.js";
 import { applyThreadCommand, applyThreadReunion } from "./threads.js";
+import { createSkyFragmentEnvelope } from "./sky.js";
 
 async function main(): Promise<void> {
   const config = await loadConfig();
@@ -15,6 +16,7 @@ async function main(): Promise<void> {
   const thresholdN = await loadThresholdN();
   const showNames = await loadShowNames();
   const threadsEnabled = await loadThreadsEnabled();
+  const skyEnabled = await loadSkyEnabled();
   const identity = await validateToken(config);
   console.log(`[auth] validated broadcaster ${identity.login}; scope user:read:chat; expires in ${Math.floor(identity.expiresIn / 3600)}h`);
   const live = await getLiveStream(config);
@@ -38,7 +40,7 @@ async function main(): Promise<void> {
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
-  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames, threadsEnabled);
+  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames, threadsEnabled, skyEnabled);
   console.log(`[overlay] http://localhost:8787/overlay/ (${layout})`);
 
   let mutationQueue = Promise.resolve();
@@ -86,7 +88,7 @@ async function main(): Promise<void> {
         const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
         const allEntries = [...entries, entry];
         if (envelope.metadata.subscription_type === "stream.offline" && state.currentStream) {
-          const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp, "eventsub", new Date().toISOString(), threadsEnabled);
+          const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp, "eventsub", new Date().toISOString(), threadsEnabled, skyEnabled);
           const paths = await writeReceiptFiles(receipt);
           console.log(`[receipt] sealed ${paths.jsonPath}; public view ${paths.htmlPath}`);
         }
@@ -110,6 +112,16 @@ async function main(): Promise<void> {
           state.lastHash = flareEntry.hash;
           entries.push(flareEntry);
           console.log(`[flare] ${String((envelope.payload.event ?? {}).chatter_user_name ?? "viewer")}`);
+        }
+        const litAfter = state.currentStream?.litUserIds.length ?? 0;
+        if (skyEnabled && litBefore.size < thresholdN && litAfter >= thresholdN) {
+          const skyEnvelope = createSkyFragmentEnvelope(state, envelope.metadata.message_timestamp);
+          if (skyEnvelope) {
+            const skyEntry = await appendEnvelope("data/events.jsonl", skyEnvelope, state.lastHash);
+            reduceEnvelope(state, skyEnvelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
+            state.lastHash = skyEntry.hash; entries.push(skyEntry);
+            console.log(`[sky] ${String((skyEnvelope.payload.event ?? {}).constellation)} ${String((skyEnvelope.payload.event ?? {}).fragment)}`);
+          }
         }
         await writeState("data/state.json", state);
         overlay.broadcast(state);
