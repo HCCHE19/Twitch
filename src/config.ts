@@ -94,6 +94,7 @@ async function loadBooleanFlag(key: string, env = process.env): Promise<boolean>
 }
 
 export const loadSkyEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("SKY", env);
+export const loadWindEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("WIND", env);
 
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
   const values = JSON.parse(await readFile(path, "utf8")) as unknown;

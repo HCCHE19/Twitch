@@ -124,6 +124,9 @@ export function drawLampDesign(context, lamp, x, y, size, brightness, time = 0, 
   }
 
   context.fillStyle = flameColor; context.shadowColor = flameColor; context.shadowBlur = size * (.07 + brightness * .13);
+  if (options.flameLean) {
+    context.translate(0, -size * .22); context.transform(1, 0, options.flameLean, 1, 0, 0); context.translate(0, size * .22);
+  }
   context.beginPath();
   if (lamp.flame === 0) {
     context.moveTo(0, -size * .25); context.bezierCurveTo(-size * .085, -size * .34, -size * .04, -size * .47, 0, -size * .52 + flicker); context.bezierCurveTo(size * .08, -size * .42, size * .08, -size * .32, 0, -size * .25);

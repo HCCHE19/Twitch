@@ -177,3 +177,9 @@
 **Decided:** Use numeric positions selected from d3-celestial's permissively licensed constellation line data as real sky coordinates, then normalize them and generate Lamplight's own connected six-region line construction, visual hierarchy, and motion in code. No image or additional bundled visual asset is introduced. The panel stays top-right, uses low-opacity white, and the short earning animation remains above the lamp band before moving into the panel. Public receipts translate earning-time IDs to display names and never embed those IDs.
 
 **Action:** Added deterministic selection, internal hash-chained events, reducer/rebuild state, gated server processing, top-right panel/opening enlargement/earning and completion animation, receipt sky and summary data, privacy-safe HTML rendering, source documentation, and tests for determinism, weighting, uniqueness, once-per-stream, completion, rebuild, disabled behavior, and public privacy.
+
+## 2026-11-02 — Collective flare wind
+
+**Decided:** With `WIND=true`, five distinct viewers whose latest accepted flares fall within ten seconds trigger one shared flame lean lasting one second. Direction is deterministically derived from that flare set. A ten-second global cooldown prevents repeated gusts; the feature is overlay-only and reduced-motion mode suppresses it. With the flag false it is inert.
+
+**Action:** Added an isolated browser-side wind tracker, shared flame shear, stream reset, cooldown, reduced-motion handling, configuration delivery, and tests for disabled state, distinct-viewer threshold, duration, and cooldown.

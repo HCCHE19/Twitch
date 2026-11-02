@@ -10,6 +10,7 @@ import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
 import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
 import { drawSkyOverlay } from "/shared/sky.js";
+import { updateWindTracker, windLean } from "/shared/wind.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -24,6 +25,8 @@ let thresholdN = 10;
 let showNames = true;
 let threadsEnabled = false;
 let skyEnabled = false;
+let windEnabled = false;
+let windTracker = { streamId: null, startedAt: null, lastTriggeredAt: null, signature: "", direction: 1 };
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -50,6 +53,8 @@ function render(time) {
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
   if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, Date.now(), selectedLayout);
+  windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, Date.now(), windEnabled);
+  const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, Date.now());
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
   const rollCall = rollCallFrame(preferences, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
@@ -123,7 +128,7 @@ function render(time) {
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
         const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean
         });
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
@@ -168,6 +173,7 @@ function connect() {
       showNames = packet.showNames !== false;
       threadsEnabled = packet.threadsEnabled === true;
       skyEnabled = packet.skyEnabled === true;
+      windEnabled = packet.windEnabled === true;
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
