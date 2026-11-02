@@ -50,7 +50,7 @@ If the offline event never arrives, run `npm run finalize`. Verify a receipt wit
 npm run verify -- receipts/<stream-id>.json
 ```
 
-The receipt includes the minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
+The receipt includes the minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. Viewers can find their name and see a ten-dot attendance history, oldest on the left. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
 
 ## Demo and tests
 

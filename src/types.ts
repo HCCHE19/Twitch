@@ -76,6 +76,7 @@ export interface PresenceReceiptRow {
   streak: number;
   lifetimeStreams: number;
   sourceMessageId: string;
+  recentAttendance: boolean[];
 }
 
 export interface ViewerSample {

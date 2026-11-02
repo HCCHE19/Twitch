@@ -25,6 +25,7 @@ describe("presence receipts", () => {
     expect(receipt.presence[0]?.streak).toBe(1);
     expect(receipt.attendance).toMatchObject({ peakTwitchViewers: 12, peakLitLamps: 1, summary: "Twitch reported 12 viewers at peak; 1 lit a lamp." });
     expect(receipt.attendance.samples).toHaveLength(2);
+    expect(receipt.presence[0]?.recentAttendance).toEqual([false, false, false, false, false, false, false, false, false, true]);
     expect(() => verifyReceipt(receipt, entries)).not.toThrow();
   });
 
@@ -42,6 +43,8 @@ describe("presence receipts", () => {
     expect(html).toContain("Public view · names only");
     expect(html).toContain("Declared versus verified presence");
     expect(html).toContain("Twitch reported 12 viewers at peak; 1 lit a lamp.");
+    expect(html).toContain("Find your lamp");
+    expect((html.match(/class=\"dot(?: filled)?\"/g) ?? []).length).toBe(10);
     expect(html).not.toContain("secret-user-id");
     expect(html).not.toContain(receipt.receiptHash);
     expect(html).not.toContain(receipt.receiptHash.slice(0, 16));
