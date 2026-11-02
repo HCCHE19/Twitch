@@ -3,6 +3,7 @@ import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/lay
 import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
 import { openingCardFrame, returnGreeting } from "/shared/memory.js";
+import { rollCallFrame } from "/shared/roll-call.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -11,7 +12,7 @@ const demo = document.querySelector("#demo");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let state = null;
 let selectedLayout = "bottom";
-let preferences = { compact: false, hidden: false };
+let preferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
 let animationFrame = 0;
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -37,6 +38,7 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
+  const rollCall = rollCallFrame(preferences, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
     const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
     sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
@@ -75,12 +77,13 @@ function render(time) {
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
-        const renderedSize = Math.min(baseRenderedSize * flare.scale, item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
+        const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
+        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale, item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
           detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35), glowAlpha
         });
-        if (item.tier !== 0) continue;
-        const labelSize = Math.max(12, item.size * .105);
+        if (item.tier !== 0 && !isRollCallCurrent) continue;
+        const labelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
         context.font = `600 ${labelSize}px "Space Grotesk", system-ui, sans-serif`;
         context.textAlign = "center";
         const labelY = item.y + item.size * .27;

@@ -19,12 +19,12 @@ export interface OverlayServer {
   close: () => Promise<void>;
 }
 
-interface OverlayPreferences { compact: boolean; hidden: boolean }
+interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
 
 export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom"): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
-  const preferences: OverlayPreferences = { compact: false, hidden: false };
+  const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
   const packet = (state: DerivedState): string => JSON.stringify({ type: "state", state, layout, preferences });
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
@@ -58,10 +58,27 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
     socket.send(packet(getState()));
     socket.on("message", (raw) => {
       try {
-        const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown };
+        const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown; rollCall?: unknown };
+        if (message.type === "roll-call-called") {
+          const stream = getState().currentStream;
+          if (preferences.rollCall && stream) {
+            const remaining = stream.litUserIds.filter((userId) => !preferences.rollCallCalled.includes(userId));
+            if (remaining.length) {
+              const started = Date.parse(preferences.rollCallStartedAt ?? new Date().toISOString());
+              const current = remaining[Math.floor(Math.max(0, Date.now() - started) / 4_000) % remaining.length];
+              if (current) preferences.rollCallCalled.push(current);
+              preferences.rollCallStartedAt = new Date().toISOString();
+            }
+            if (stream.litUserIds.every((userId) => preferences.rollCallCalled.includes(userId))) preferences.rollCall = false;
+          }
+          sendState(); return;
+        }
         if (message.type !== "preferences") return;
         if (typeof message.compact === "boolean") preferences.compact = message.compact;
         if (typeof message.hidden === "boolean") preferences.hidden = message.hidden;
+        if (typeof message.rollCall === "boolean" && message.rollCall !== preferences.rollCall) {
+          preferences.rollCall = message.rollCall; preferences.rollCallCalled = []; preferences.rollCallStartedAt = new Date().toISOString();
+        }
         sendState();
       } catch { /* Ignore malformed localhost control messages. */ }
     });

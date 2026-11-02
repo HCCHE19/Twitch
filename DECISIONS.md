@@ -93,3 +93,9 @@
 **Decided:** For three seconds after a previously attended lamp relights, show `back for stream N` beneath its full-size name plate, where `N` is the ledger-derived lifetime stream count. First-time lamps, expired greetings, dense tiers without plates, and lamps not lit this stream show nothing.
 
 **Action:** Added a deterministic greeting selector, overlay label, and tests for count, duration, and first-attendance exclusion.
+
+## 2026-11-02 — Local roll call
+
+**Decided:** Roll call is ephemeral localhost control state and never chat or ledger output. It cycles through uncalled lamps in first-lit order at four-second intervals. `Mark current lamp called` removes the highlighted lamp and advances immediately; after all lit lamps are called, the mode turns itself off. The current lamp grows 25% and receives a larger name plate even in dense tiers.
+
+**Action:** Added roll-call controls, server-side called state, deterministic order/timing, overlay emphasis, automatic completion, and an order/completion test.

@@ -42,6 +42,7 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
 
 Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
 Open `http://localhost:8787/control/` privately to compact or hide the band.
+The same private page can start a roll call and mark the highlighted lamp called; it cycles through uncalled lamps in first-lit order and turns off when complete.
 
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 
