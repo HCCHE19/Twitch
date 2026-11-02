@@ -46,6 +46,7 @@ Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then res
 Open `http://localhost:8787/control/` privately to compact or hide the band.
 The same private page can start a roll call and mark the highlighted lamp called; it cycles through uncalled lamps in first-lit order and turns off when complete.
 Set `THRESHOLD_N` in `.env` (default `10`) to choose when the once-per-stream left-to-right lamp wave runs.
+Set `SHOW_NAMES=false` to hide every name plate and return greeting on the overlay; receipt names are unaffected.
 
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 

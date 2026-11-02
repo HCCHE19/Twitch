@@ -66,6 +66,15 @@ export async function loadThresholdN(env = process.env): Promise<number> {
   return threshold;
 }
 
+export async function loadShowNames(env = process.env): Promise<boolean> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const value = (env.SHOW_NAMES?.trim() || fileValues.SHOW_NAMES?.trim() || "true").toLowerCase();
+  if (value !== "true" && value !== "false") throw new Error("SHOW_NAMES must be true or false");
+  return value === "true";
+}
+
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
   const values = JSON.parse(await readFile(path, "utf8")) as unknown;
   if (!Array.isArray(values) || values.some((value) => typeof value !== "string")) {

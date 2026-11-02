@@ -1,4 +1,4 @@
-import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadThresholdN } from "./config.js";
+import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadShowNames, loadThresholdN } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
@@ -12,6 +12,7 @@ async function main(): Promise<void> {
   const ignoredUsers = await loadIgnoredUsers();
   const layout = await loadOverlayLayout();
   const thresholdN = await loadThresholdN();
+  const showNames = await loadShowNames();
   const identity = await validateToken(config);
   console.log(`[auth] validated broadcaster ${identity.login}; scope user:read:chat; expires in ${Math.floor(identity.expiresIn / 3600)}h`);
   const live = await getLiveStream(config);
@@ -35,7 +36,7 @@ async function main(): Promise<void> {
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
-  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN);
+  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames);
   console.log(`[overlay] http://localhost:8787/overlay/ (${layout})`);
 
   let mutationQueue = Promise.resolve();

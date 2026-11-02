@@ -117,3 +117,9 @@
 **Decided:** `npm run export` produces a self-contained `docs/` site from the fictional public sample, production lamp renderer, Space Grotesk font, and OFL licence. Export rewrites root-relative asset paths for the `/Twitch/` project Pages location. The README links to the Pages URL while continuing to label the committed receipt as fictional sample data.
 
 **Action:** Added the export CLI, package script, generated Pages artifacts, README link, and an export-output validation step.
+
+## 2026-11-02 — Overlay name visibility
+
+**Decided:** `SHOW_NAMES=false` is a global overlay privacy switch: it hides ordinary plates, roll-call plates, and return greetings, while receipts retain names. Default is `true`; any value other than literal true/false fails configuration rather than guessing.
+
+**Action:** Added validated configuration, server delivery, overlay enforcement, documentation, and parsing tests.

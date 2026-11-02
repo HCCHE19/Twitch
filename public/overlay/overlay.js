@@ -16,6 +16,7 @@ let selectedLayout = "bottom";
 let preferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
 let animationFrame = 0;
 let thresholdN = 10;
+let showNames = true;
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -86,7 +87,7 @@ function render(time) {
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
           detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25), glowAlpha
         });
-        if (item.tier !== 0 && !isRollCallCurrent) continue;
+        if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const labelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
         context.font = `600 ${labelSize}px "Space Grotesk", system-ui, sans-serif`;
         context.textAlign = "center";
@@ -123,6 +124,7 @@ function connect() {
     if (packet.type === "state") {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       thresholdN = packet.thresholdN ?? 10;
+      showNames = packet.showNames !== false;
       waveTracker = updateWaveTracker(waveTracker, state.currentStream?.id, state.currentStream?.litUserIds.length ?? 0, thresholdN);
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
