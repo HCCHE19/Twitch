@@ -15,6 +15,14 @@ describe("sky panel state fidelity",()=>{
     }
   });
 
+  it("holds the old panel state until the landing-delayed fragment moment begins",()=>{
+    const state=[fragment("A",1),fragment("B",2)];
+    const held=skyPanelTransitionAt(state,Date.parse("2026-11-02T00:00:10Z"),"normal",false,null,1250,null);
+    expect(held.transition.rendered.counts.Leo).toBe(1);
+    const startedAt=Date.parse("2026-11-02T00:00:09Z"),playing=skyPanelTransitionAt(state,startedAt+900,"normal",false,null,1250,startedAt);
+    expect(playing.transition.rendered.counts.Leo).toBe(2);
+  });
+
   it("keeps a completed constellation fully focused with its completion ring",()=>{
     const state=["A","B","C","D","E","F"].map(fragment),settled=skyMomentTransition(state,true,"Leo").rendered;
     expect(settled.current).toBe("Leo");expect(settled.inventory.Leo).toEqual(["A","B","C","D","E","F"]);expect(settled.counts.Leo).toBe(6);expect(settled.ringed).toContain("Leo");expect(settled.caption).toBe("Leo, complete");

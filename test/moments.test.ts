@@ -1,7 +1,7 @@
 import { describe,expect,it } from "vitest";
 import { emptyState,reduceEnvelope } from "../src/presence.js";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { completionMomentFrame,fragmentBandMoment,fragmentMomentFrame,igniteFrame } from "../public/shared/moments.js";
+import { completionMomentFrame,fragmentBandMoment,fragmentMomentFrame,igniteFrame,resolveFragmentMomentStart } from "../public/shared/moments.js";
 
 const start="2026-11-02T00:00:00Z",at=(ms:number)=>Date.parse(start)+ms;
 describe("overlay moments",()=>{
@@ -20,12 +20,17 @@ describe("overlay moments",()=>{
     expect(fragmentMomentFrame(start,at(300),false).sweep).toBeGreaterThan(0);expect(fragmentMomentFrame(start,at(450),false).panelScale).toBe(1.5);expect(fragmentMomentFrame(start,at(1250),false).active).toBe(false);
   });
 
-  it("pulses only the ledger-recorded lamps and keeps the fragment line for three seconds",()=>{
+  it("waits for the threshold lamp to land, then pulses contributors three times and keeps the line for three seconds",()=>{
     const earnedAt="2026-11-02T00:00:00Z",fragment={constellation:"Capricornus",earnedAt,litUserIds:["a","b"]};
-    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+325,false)).toMatchObject({active:true,text:"Capricornus, piece 1 of 6",litUserIds:["a","b"]});
-    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+325,false).pulse).toBeGreaterThan(0);
-    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+2500,false).alpha).toBeLessThan(1);
-    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+3000,false).active).toBe(false);
+    const lamps={a:{userId:"a",lastLitAt:earnedAt},b:{userId:"b",lastLitAt:"2026-11-02T00:00:00.100Z"}},arrivalStarts=new Map([["b",at(500)]]);
+    expect(resolveFragmentMomentStart(fragment,lamps,new Set(["b"]),arrivalStarts,at(600))).toBeNull();
+    const momentStart=resolveFragmentMomentStart(fragment,lamps,new Set(),arrivalStarts,at(600));expect(momentStart).toBe(at(1700));
+    expect(fragmentBandMoment(fragment,1,at(1600),false,momentStart).active).toBe(false);
+    expect(fragmentBandMoment(fragment,1,at(1850),false,momentStart)).toMatchObject({active:true,text:"Capricornus, piece 1 of 6",litUserIds:["a","b"]});
+    for(const age of [150,550,950])expect(fragmentBandMoment(fragment,1,momentStart+age,false,momentStart).pulse).toBeGreaterThan(.9);
+    for(const age of [350,750,1150])expect(fragmentBandMoment(fragment,1,momentStart+age,false,momentStart).pulse).toBe(0);
+    expect(fragmentBandMoment(fragment,1,momentStart+2500,false,momentStart).alpha).toBeLessThan(1);
+    expect(fragmentBandMoment(fragment,1,momentStart+3000,false,momentStart).active).toBe(false);
   });
   it("keeps quiet completion out of the frame and caps normal/big height",()=>{
     expect(completionMomentFrame(start,at(1000),"quiet",false).active).toBe(false);expect(completionMomentFrame(start,at(1000),"normal",false).maxHeight).toBeCloseTo(1/3);expect(completionMomentFrame(start,at(1000),"big",false).maxHeight).toBe(.5);

@@ -122,14 +122,14 @@ export function drawSkyPanel(ctx,fragmentsOrModel,x,y,w,h,enlarged=false) {
   ctx.restore();
 }
 
-export function skyPanelTransitionAt(fragments=[],now=Date.now(),moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250) {
-  const recent=fragments.at(-1),finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionAt=recent?new Date(Date.parse(recent.earnedAt)+completionDelay).toISOString():null,completionFrame=recent&&isComplete?completionMomentFrame(completionAt,now,moments,reducedMotion):null;
+export function skyPanelTransitionAt(fragments=[],now=Date.now(),moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,recentMomentAt=undefined) {
+  const recent=fragments.at(-1),rawMomentAt=recentMomentAt===null?"9999-12-31T23:59:59Z":recentMomentAt??recent?.earnedAt,momentAt=typeof rawMomentAt==="number"?new Date(rawMomentAt).toISOString():rawMomentAt,finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(momentAt,now,reducedMotion):null,completionAt=recent?new Date(Date.parse(momentAt)+completionDelay).toISOString():null,completionFrame=recent&&isComplete?completionMomentFrame(completionAt,now,moments,reducedMotion):null;
   const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled;
   return {recent,isComplete,fragmentFrame,completionFrame,transition:skyMomentTransition(fragments,!holdRecent,displayLock?.constellation??null)};
 }
 
-export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0,progress=null) {
-  const fragments=state?.skyFragments??[],{recent,isComplete,fragmentFrame,completionFrame,transition}=skyPanelTransitionAt(fragments,now,moments,reducedMotion,displayLock,completionDelay);
+export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0,progress=null,recentMomentAt=undefined) {
+  const fragments=state?.skyFragments??[],{recent,isComplete,fragmentFrame,completionFrame,transition}=skyPanelTransitionAt(fragments,now,moments,reducedMotion,displayLock,completionDelay,recentMomentAt);
   const enlarged=Boolean(openingActive&&recent),panelW=enlarged?500:400,panelH=enlarged?240:160,x=width-panelW-28,y=22;
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
   drawSkyProgress(ctx,progress,x,y+panelH,panelW);

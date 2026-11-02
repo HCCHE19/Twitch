@@ -350,3 +350,9 @@
 - Decision: `!tie`, `!untie`, `!back`, and `!closing` must never fail invisibly during a live test. Each received command writes one Terminal line with sender, applied/ignored status, and a specific reason; no chat text is added to the ledger.
 - Implementation: Twitch's documented `channel.chat.message` mention fields are handled by user ID, with display-name matching and bare-left-neighbour behavior retained. An unlit sender and a sender with no earlier left neighbour are valid ignored outcomes and are now explicit. Named, official mention-fragment, bare, pending, reciprocal, and ignored paths have Twitch-shaped tests.
 - Verification: 119 tests and TypeScript checks pass; secret scan passes. A headless Chrome check at 1920×1080 confirmed the enlarged panel and band-only fragment label with no page errors. No `.env` or real saved authentication data was accessed.
+
+## 2026-11-03 — Fragment moment follows the landing
+
+- Decision: a fragment moment starts only after the threshold-completing lamp has finished its arrival, 1.2 seconds after that lamp's ignite begins. Contributing lamps pulse three times at 400ms intervals; the sill sweep starts with the first pulse; the piece line remains for three full seconds.
+- Implementation: the overlay resolves the threshold lamp from the fragment event's ledger-recorded contributor IDs and lamp timestamps, waits while its arrival is queued, and locks one client-side moment timestamp from its actual ignite schedule. The lamp pulses, sweep, caption, panel transition, and any completion sequence all derive from that timestamp, so server state cannot appear early.
+- Verification: timing tests cover the queued hold, exact 1.2-second landing delay, three pulse peaks and gaps, three-second caption, and panel-state hold. Reduced motion retains a quiet non-strobing acknowledgement.

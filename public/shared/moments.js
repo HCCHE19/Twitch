@@ -11,16 +11,23 @@ export function igniteFrame(litAt,now=Date.now(),reducedMotion=false,level="norm
 }
 
 export function fragmentMomentFrame(earnedAt,now=Date.now(),reducedMotion=false){
-  const age=now-Date.parse(earnedAt);if(age<0||age>=1250)return {active:false,sweep:0,panelScale:1,pulse:0,settled:age>=1250};
+  const age=now-(typeof earnedAt==="number"?earnedAt:Date.parse(earnedAt));if(age<0||age>=1250)return {active:false,sweep:0,panelScale:1,pulse:0,settled:age>=1250};
   if(reducedMotion)return {active:true,sweep:0,panelScale:1,pulse:age<500?.25:0,settled:true};
   const sweep=Math.min(1,age/650),panelAge=Math.max(0,age-450),panelScale=1+.5*(1-Math.min(1,panelAge/500)),pulse=age>=850?Math.sin(Math.PI*Math.min(1,(age-850)/400)):0;
   return {active:true,sweep,panelScale,pulse,settled:age>=850};
 }
 
-export function fragmentBandMoment(fragment,count,now=Date.now(),reducedMotion=false){
-  if(!fragment)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
-  const age=now-Date.parse(fragment.earnedAt);if(age<0||age>=3000)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
-  const alpha=age<2300?1:Math.max(0,1-(age-2300)/700),pulse=reducedMotion?(age<500?.25:0):age<650?Math.sin(Math.PI*age/650):0;
+export function resolveFragmentMomentStart(fragment,lamps={},queuedIds=new Set(),arrivalStarts=new Map(),now=Date.now()){
+  if(!fragment)return null;const contributors=(fragment.litUserIds??[]).map(id=>lamps[id]).filter(Boolean).sort((a,b)=>Date.parse(b.lastLitAt)-Date.parse(a.lastLitAt)),thresholdLamp=contributors[0];
+  if(!thresholdLamp)return Date.parse(fragment.earnedAt);if(queuedIds.has(thresholdLamp.userId))return null;
+  const arrivalStart=arrivalStarts.get(thresholdLamp.userId);if(Number.isFinite(arrivalStart))return arrivalStart+1200;
+  const earned=Date.parse(fragment.earnedAt);return now-earned<5000?Math.max(earned,Date.parse(thresholdLamp.lastLitAt))+1200:earned;
+}
+
+export function fragmentBandMoment(fragment,count,now=Date.now(),reducedMotion=false,startedAt=fragment?.earnedAt){
+  if(!fragment||startedAt===null)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
+  const age=now-(typeof startedAt==="number"?startedAt:Date.parse(startedAt));if(age<0||age>=3000)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
+  const alpha=age<2300?1:Math.max(0,1-(age-2300)/700),pulse=reducedMotion?(age<1000?.25:0):Math.max(...[0,400,800].map(offset=>{const local=age-offset;return local>=0&&local<300?Math.sin(Math.PI*local/300):0}));
   return {active:true,alpha,pulse,text:`${fragment.constellation}, piece ${count} of 6`,litUserIds:Array.isArray(fragment.litUserIds)?fragment.litUserIds:[]};
 }
 

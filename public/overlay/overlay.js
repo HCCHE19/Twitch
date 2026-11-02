@@ -12,7 +12,7 @@ import { flareInteractions } from "/shared/flare-interactions.js";
 import { drawThreadLines, placeThreadArrival, threadVisuals } from "/shared/threads.js";
 import { drawSkyGlyph, drawSkyOverlay, skyPanelTransitionAt, updateSkyDisplayLock } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
-import { completionMomentFrame, fragmentBandMoment, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
+import { completionMomentFrame, fragmentBandMoment, fragmentMomentFrame, igniteFrame, resolveFragmentMomentStart } from "/shared/moments.js";
 import { animateRowLayout, reconcileLampOrder, releaseArrivalBatch } from "/shared/row-motion.js";
 import { closingHintPosition, closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
 
@@ -42,6 +42,7 @@ const arrivalStarts = new Map();
 let lastThreadSlideAt = null;
 let skyDisplayLock = null;
 let skyProgressTracker = null;
+const fragmentMomentStarts = new Map();
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
@@ -111,11 +112,17 @@ function render(time) {
     context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   }
   const latestFragment = skyEnabled ? state?.skyFragments?.at(-1) : null;
-  const fragmentFrame = latestFragment ? fragmentMomentFrame(latestFragment.earnedAt, renderNow, reducedMotion.matches) : null;
+  const fragmentKey = latestFragment ? `${latestFragment.streamId}:${latestFragment.constellation}:${latestFragment.fragment}` : null;
+  if (fragmentKey && !fragmentMomentStarts.has(fragmentKey)) {
+    const resolved = resolveFragmentMomentStart(latestFragment, state?.lamps, new Set(queuedArrivals.keys()), arrivalStarts, renderNow);
+    if (resolved !== null) fragmentMomentStarts.set(fragmentKey, resolved);
+  }
+  const fragmentMomentAt = fragmentKey ? fragmentMomentStarts.get(fragmentKey) ?? null : null;
+  const fragmentFrame = latestFragment && fragmentMomentAt !== null ? fragmentMomentFrame(fragmentMomentAt, renderNow, reducedMotion.matches) : null;
   const fragmentCount = latestFragment ? state.skyFragments.filter((item) => item.constellation === latestFragment.constellation).length : 0;
-  const completionAt = latestFragment ? new Date(Date.parse(latestFragment.earnedAt) + 1_250).toISOString() : null;
-  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(completionAt, renderNow, momentLevel, reducedMotion.matches) : null;
-  const fragmentNoticeFrame = fragmentBandMoment(latestFragment, fragmentCount, renderNow, reducedMotion.matches);
+  const completionAt = latestFragment && fragmentMomentAt !== null ? new Date(fragmentMomentAt + 1_250).toISOString() : null;
+  const completionFrame = latestFragment && fragmentCount === 6 && completionAt ? completionMomentFrame(completionAt, renderNow, momentLevel, reducedMotion.matches) : null;
+  const fragmentNoticeFrame = fragmentBandMoment(latestFragment, fragmentCount, renderNow, reducedMotion.matches, fragmentMomentAt);
   if (fragmentFrame) drawBandSweep(fragmentFrame, baseline);
   if (latestFragment && completionFrame) drawCompletionMoment(latestFragment, completionFrame, baseline);
   if (state) {
@@ -272,7 +279,7 @@ function render(time) {
     const complete = Boolean(skyDisplayLock && model.counts[skyDisplayLock.constellation] === 6);
     const progress = skyProgressFrame(skyProgressTracker, state, landed, thresholdN, renderNow, complete, reducedMotion.matches);
     skyProgressTracker = progress.tracker;
-    drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock, 1250, reducedMotion.matches ? 0 : opening.panelPulse ?? 0, progress);
+    drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock, 1250, reducedMotion.matches ? 0 : opening.panelPulse ?? 0, progress, fragmentMomentAt);
   }
   if (!reducedMotion.matches) animationFrame = requestAnimationFrame(render);
 }
