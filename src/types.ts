@@ -49,6 +49,18 @@ export interface ClosingMoment {
   returningLamps: number;
 }
 
+export interface ThreadState {
+  userIds: [string, string];
+  createdAt: string;
+  createdStreamId: string;
+}
+
+export interface PendingThread {
+  fromUserId: string;
+  toUserId: string;
+  createdAt: string;
+}
+
 export interface OpeningCard {
   startedAt: string;
   previousStreamId: string;
@@ -63,6 +75,10 @@ export interface DerivedState {
   closingMoment: ClosingMoment | null;
   openingCard: OpeningCard | null;
   flareAtByUserId: Record<string, string>;
+  threadReunionAtByUserId: Record<string, string>;
+  threads: ThreadState[];
+  pendingThreads: PendingThread[];
+  threadOutgoingUserIds: string[];
   completedStreamIds: string[];
   lamps: Record<string, LampState>;
   demoReplay: boolean;
@@ -98,6 +114,15 @@ export interface PresenceReceipt {
   stream: { id: string; startedAt: string; endedAt: string; finalization: "eventsub" | "manual" };
   presence: PresenceReceiptRow[];
   attendance: AttendanceComparison;
+  threadsTonight?: Array<[string, string]>;
+  nightSummary?: {
+    firstLitAt: string | null;
+    lastLitAt: string | null;
+    firstArrival: string | null;
+    longestStreakName: string | null;
+    longestStreak: number;
+    threadsTied: number;
+  };
   ledger: { startPrevHash: string; endHash: string; eventCount: number };
   sealedAt: string;
   receiptHash: string;

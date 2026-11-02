@@ -68,4 +68,31 @@ describe("presence receipts", () => {
     } as unknown as Parameters<typeof sharedCompany>[1];
     expect(sharedCompany("me", lamps)).toEqual(["Avery", "Bao", "Chika"]);
   });
+
+  it("keeps the v0.2.0 receipt shape when threads are disabled", () => {
+    const { receipt } = fixture();
+    expect(receipt).not.toHaveProperty("threadsTonight");
+    expect(receipt).not.toHaveProperty("nightSummary");
+    expect(receiptHtml(receipt)).not.toContain("Threads tonight");
+  });
+
+  it("lists mutual pairs and generates all four rule-based night-summary lines when enabled", () => {
+    const events = [
+      envelope("online", "stream.online", "2026-11-01T10:00:00Z", { id: "stream-threads", started_at: "2026-11-01T10:00:00Z" }),
+      envelope("alice", "channel.chat.message", "2026-11-01T10:01:00Z", { chatter_user_id: "a", chatter_user_login: "alice", chatter_user_name: "Alice", message: { text: "!lamp", fragments: [{ type: "text", text: "!lamp" }] } }),
+      envelope("bob", "channel.chat.message", "2026-11-01T10:02:00Z", { chatter_user_id: "b", chatter_user_login: "bob", chatter_user_name: "Bob", message: { text: "!lamp", fragments: [{ type: "text", text: "!lamp" }] } }),
+      envelope("thread", "lamplight.thread.tied", "2026-11-01T10:03:00Z", { stream_id: "stream-threads", user_id_a: "a", user_id_b: "b" }),
+      envelope("offline", "stream.offline", "2026-11-01T10:05:00Z", {})
+    ];
+    const entries: LedgerEntry[] = [];
+    for (const event of events) entries.push(makeLedgerEntry(event, entries.at(-1)?.hash ?? "", event.metadata.message_timestamp));
+    const state = rebuildState(entries.slice(0, -1), { broadcasterLogin: "owner" });
+    const receipt = createReceipt(state, entries, events.at(-1)!.metadata.message_timestamp, "eventsub", "2026-11-01T10:05:01Z", true);
+    expect(receipt.threadsTonight).toEqual([["Alice", "Bob"]]);
+    expect(receipt.nightSummary).toEqual({ firstLitAt: "2026-11-01T10:01:00Z", lastLitAt: "2026-11-01T10:02:00Z", firstArrival: "Alice", longestStreakName: "Alice", longestStreak: 1, threadsTied: 1 });
+    const html = receiptHtml(receipt);
+    for (const line of ["Threads tonight", "Lamps were lit", "First to arrive: Alice.", "Longest streak tonight: Alice (1).", "Threads tied tonight: 1."]) expect(html).toContain(line);
+    expect(html).not.toContain("user_id_a");
+    expect(() => verifyReceipt(receipt, entries)).not.toThrow();
+  });
 });

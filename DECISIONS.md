@@ -153,3 +153,13 @@
 **Decided:** Skip the red-thread section before the 17:00 freeze. It couples command/moderator authorization, pending and persistent graph state, caps, rebuilds, placement, receipts, waiting rendering, and eleven required tests; partial implementation would be unsafe for recording. Skip the entire constellation/firefly/milestone section because work began after its explicit 14:00 cutoff. If the threshold is reached during the ten-second opening card, defer the one-shot wave until the card clears rather than consuming it invisibly.
 
 **Action:** Left all thread and fourth-section behavior absent and documented the scope decision. Moved threshold evaluation into the render cycle after opening-card state so the wave remains visible in the recording configuration.
+
+## 2026-11-02 — Isolated red-thread model after freeze lift
+
+**Decided:** Tag the recording-safe pre-thread build as `v0.2.0`. The full thread subsystem is gated by validated `THREADS`, default `false`. When false, no command processor runs, no internal thread event is appended, no thread receipt fields are added, and no thread placement or drawing occurs. Pending ties are live derived state only and expire on offline/restart; only mutual `lamplight.thread.tied` and accepted `lamplight.thread.untied` events enter the hash chain.
+
+**Decided:** `!tie <display name>` is available only to a lit non-broadcaster/non-bot viewer, once per stream, targeting another lamp lit tonight. Resolve case-insensitive exact match first, then unique prefix. Reciprocal same-stream ties create a mutual thread; invalid, ambiguous, self, dim, absent, existing, or over-cap attempts do nothing. Persistent degree is capped at three per lamp in both validation and reducer, so the oldest three survive rebuild.
+
+**Decided:** Because bare `!untie` is ambiguous with multiple persistent threads, a participant's bare command removes their thread only when exactly one exists; `!untie <display name>` targets a counterpart. Moderators use `!untie Name A | Name B` for an explicit pair, or one name only when that lamp has exactly one thread. Either party and moderators produce the same ledger untie event.
+
+**Action:** Added gated parsing, pending and mutual state, reducer-enforced persistence/cap, rebuild behavior, participant/moderator untie, adjacency preference before hue separation, dashed/solid/waiting-knot rendering, reunion flares, display-name-only receipt pairs, and four ledger-derived night-summary lines. Added disabled-equivalence, mutuality, expiry, eligibility, one-outgoing, matching, untie, persistence, cap, waiting, placement, reunion, receipt, summary and privacy tests.

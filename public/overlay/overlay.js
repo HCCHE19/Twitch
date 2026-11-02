@@ -8,6 +8,7 @@ import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
+import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -20,6 +21,7 @@ let preferences = { compact: false, hidden: false, rollCall: false, rollCallCall
 let animationFrame = 0;
 let thresholdN = 10;
 let showNames = true;
+let threadsEnabled = false;
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -70,8 +72,9 @@ function render(time) {
     const lamps = opening.active ? [] : closing.kind === "lamps"
       ? closingIds.flatMap((userId) => state.lamps[userId] ? [state.lamps[userId]] : [])
       : closing.kind === "none" ? Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt)) : [];
+    const adjacencyOrdered = threadsEnabled ? preferThreadAdjacency(selectVisibleLamps(lamps), state.threads, state.currentStream?.litUserIds) : selectVisibleLamps(lamps);
     const visible = separateAdjacentHues(
-      selectVisibleLamps(lamps),
+      adjacencyOrdered,
       (item) => generateLamp(item.lamp.userId).hue,
       ({ rowLength, collisions }) => console.warn(`[layout] ${collisions} unavoidable hue-distance violation(s) at row length ${rowLength}`)
     );
@@ -79,6 +82,20 @@ function render(time) {
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
     const welcomeEffects = neighbourWelcome(visible, state.currentStream, Date.now());
     const laidOut = layout(visible);
+    const threadLines = threadsEnabled ? threadVisuals(laidOut, state) : { pending: [], solid: [], waiting: [] };
+    for (const line of threadLines.pending) {
+      context.save(); context.setLineDash([6, 8]); context.strokeStyle = "rgba(198,74,76,.38)"; context.lineWidth = 1.2;
+      context.beginPath(); context.moveTo(line.from.x, line.from.y - line.from.size * .35); context.lineTo(line.to.x, line.to.y - line.to.size * .35); context.stroke(); context.restore();
+    }
+    for (const line of threadLines.solid) {
+      context.strokeStyle = "rgba(204,68,72,.62)"; context.lineWidth = 1.5;
+      context.beginPath(); context.moveTo(line.from.x, line.from.y - line.from.size * .35); context.lineTo(line.to.x, line.to.y - line.to.size * .35); context.stroke();
+    }
+    for (const line of threadLines.waiting) {
+      const startX = line.from.x; const startY = line.from.y - line.from.size * .34; const endX = startX + line.direction * line.from.size * .34; const endY = line.from.y + line.from.size * .08;
+      context.strokeStyle = "rgba(204,68,72,.48)"; context.lineWidth = 1.4; context.beginPath(); context.moveTo(startX, startY); context.bezierCurveTo(startX, startY + line.from.size * .28, endX, endY - line.from.size * .14, endX, endY); context.stroke();
+      context.fillStyle = "rgba(204,68,72,.62)"; context.beginPath(); context.arc(endX, endY, Math.max(2, line.from.size * .022), 0, Math.PI * 2); context.fill();
+    }
     const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, Date.now());
     if (interactions.spark) {
       const from = laidOut.find((item) => item.lamp?.userId === interactions.spark.fromUserId);
@@ -95,7 +112,8 @@ function render(time) {
         const opacity = (bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit)) * opening.lampOpacity;
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
-        const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
+        const pulseAt = [state.flareAtByUserId?.[item.lamp.userId], state.threadReunionAtByUserId?.[item.lamp.userId]].filter(Boolean).sort().at(-1);
+        const flare = flarePulse(pulseAt, Date.now(), reducedMotion.matches);
         const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, Date.now());
         const welcome = reducedMotion.matches ? undefined : welcomeEffects[item.lamp.userId];
         const ripple = interactions.ripples[item.lamp.userId] ?? 0;
@@ -145,9 +163,11 @@ function connect() {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       thresholdN = packet.thresholdN ?? 10;
       showNames = packet.showNames !== false;
+      threadsEnabled = packet.threadsEnabled === true;
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
+      if (reducedMotion.matches && Object.values(state.threadReunionAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
     }
   });
   socket.addEventListener("close", () => { status.hidden = false; status.textContent = "RECONNECTING"; setTimeout(connect, 1000); });

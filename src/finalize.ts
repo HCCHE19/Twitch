@@ -1,10 +1,11 @@
-import { loadConfig, loadIgnoredUsers } from "./config.js";
+import { loadConfig, loadIgnoredUsers, loadThreadsEnabled } from "./config.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { reduceEnvelope } from "./presence.js";
 import { createReceipt, writeReceiptFiles } from "./receipt.js";
 
 const config = await loadConfig();
 const ignoredUsers = await loadIgnoredUsers();
+const threadsEnabled = await loadThreadsEnabled();
 const entries = await readLedger("data/events.jsonl");
 const options = { broadcasterLogin: config.channelLogin, ignoredUsers };
 const state = rebuildState(entries, options);
@@ -15,7 +16,7 @@ const envelope = {
   payload: { event: { id: state.currentStream.id, source: "manual" } }
 };
 const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
-const receipt = createReceipt(state, [...entries, entry], now, "manual", now);
+const receipt = createReceipt(state, [...entries, entry], now, "manual", now, threadsEnabled);
 const paths = await writeReceiptFiles(receipt);
 reduceEnvelope(state, envelope, options);
 state.lastHash = entry.hash;

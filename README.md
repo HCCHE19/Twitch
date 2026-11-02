@@ -51,6 +51,12 @@ Name plates support Japanese and Chinese display names through system-font fallb
 When a lamp lights for the first time ever, its rendered neighbours briefly tilt and brighten toward it in welcome.
 Flares send a delayed, fainter pulse to adjacent lamps; two different viewers flaring within five seconds briefly draw a thin spark between them.
 
+### Optional red threads
+
+Red threads are isolated behind `THREADS=false` by default. Set `THREADS=true` and restart to enable them. An already-lit viewer may send `!tie Display Name` once per stream. The target must be another lamp lit tonight; names match case-insensitively by exact name first, then unique prefix. The one-way request is a faint dashed line and is not recorded. If the target sends `!tie` back in the same stream, Lamplight records a mutual thread and draws a thin solid red line. Each lamp keeps its oldest three mutual threads. In later streams, a thread returns when both lamps are lit; while only one is present it hangs from that lamp with a small knot, and both lamps flare when reunited.
+
+Either party may use `!untie Display Name`; bare `!untie` works only when that viewer has exactly one thread. A moderator may use `!untie Name A | Name B`, or `!untie Display Name` when that lamp has exactly one thread. Accepted removals are ledger events. Invalid, ambiguous, self, broadcaster, absent, dim, over-cap, or second-outgoing attempts have no visible effect. The bot never responds in chat. Thread-enabled receipts list mutual pairs tied that night and four rule-generated lines: lit-time range, first arrival, longest streak, and thread count.
+
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 
 ```bash

@@ -1,4 +1,4 @@
-import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadShowNames, loadThresholdN } from "./config.js";
+import { loadConfig, loadIgnoredUsers, loadOverlayLayout, loadShowNames, loadThresholdN, loadThreadsEnabled } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
@@ -6,6 +6,7 @@ import { createFlareEnvelope, reduceEnvelope } from "./presence.js";
 import { createReceipt, writeReceiptFiles } from "./receipt.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 import { startViewerSampler, viewerSampleEnvelope } from "./viewer-sampling.js";
+import { applyThreadCommand, applyThreadReunion } from "./threads.js";
 
 async function main(): Promise<void> {
   const config = await loadConfig();
@@ -13,6 +14,7 @@ async function main(): Promise<void> {
   const layout = await loadOverlayLayout();
   const thresholdN = await loadThresholdN();
   const showNames = await loadShowNames();
+  const threadsEnabled = await loadThreadsEnabled();
   const identity = await validateToken(config);
   console.log(`[auth] validated broadcaster ${identity.login}; scope user:read:chat; expires in ${Math.floor(identity.expiresIn / 3600)}h`);
   const live = await getLiveStream(config);
@@ -36,7 +38,7 @@ async function main(): Promise<void> {
   }
   await writeState("data/state.json", state);
   console.log(`[state] rebuilt from ${entries.length} ledger events; ${Object.keys(state.lamps).length} lamps`);
-  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames);
+  const overlay = await startOverlayServer(() => state, 8787, layout, thresholdN, showNames, threadsEnabled);
   console.log(`[overlay] http://localhost:8787/overlay/ (${layout})`);
 
   let mutationQueue = Promise.resolve();
@@ -80,16 +82,28 @@ async function main(): Promise<void> {
     onEnvelope: async (envelope) => {
       await serialize(async () => {
         const flare = createFlareEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
+        const litBefore = new Set(state.currentStream?.litUserIds ?? []);
         const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
         const allEntries = [...entries, entry];
         if (envelope.metadata.subscription_type === "stream.offline" && state.currentStream) {
-          const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp);
+          const receipt = createReceipt(state, allEntries, envelope.metadata.message_timestamp, "eventsub", new Date().toISOString(), threadsEnabled);
           const paths = await writeReceiptFiles(receipt);
           console.log(`[receipt] sealed ${paths.jsonPath}; public view ${paths.htmlPath}`);
         }
         reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
         state.lastHash = entry.hash;
         entries.push(entry);
+        if (threadsEnabled && envelope.metadata.subscription_type === "channel.chat.message" && state.currentStream) {
+          const newlyLit = state.currentStream.litUserIds.find((userId) => !litBefore.has(userId));
+          if (newlyLit) applyThreadReunion(state, newlyLit, envelope.metadata.message_timestamp);
+          const threadEvents = applyThreadCommand(state, envelope, { enabled: true, broadcasterLogin: config.channelLogin, ignoredUsers });
+          for (const threadEnvelope of threadEvents) {
+            const threadEntry = await appendEnvelope("data/events.jsonl", threadEnvelope, state.lastHash);
+            reduceEnvelope(state, threadEnvelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
+            state.lastHash = threadEntry.hash; entries.push(threadEntry);
+            console.log(`[thread] ${threadEnvelope.metadata.subscription_type}`);
+          }
+        }
         if (flare) {
           const flareEntry = await appendEnvelope("data/events.jsonl", flare, state.lastHash);
           reduceEnvelope(state, flare, { broadcasterLogin: config.channelLogin, ignoredUsers });

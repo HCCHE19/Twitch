@@ -75,6 +75,15 @@ export async function loadShowNames(env = process.env): Promise<boolean> {
   return value === "true";
 }
 
+export async function loadThreadsEnabled(env = process.env): Promise<boolean> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const value = (env.THREADS?.trim() || fileValues.THREADS?.trim() || "false").toLowerCase();
+  if (value !== "true" && value !== "false") throw new Error("THREADS must be true or false");
+  return value === "true";
+}
+
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
   const values = JSON.parse(await readFile(path, "utf8")) as unknown;
   if (!Array.isArray(values) || values.some((value) => typeof value !== "string")) {

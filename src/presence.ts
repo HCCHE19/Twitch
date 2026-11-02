@@ -11,6 +11,10 @@ export function emptyState(demoReplay = false): DerivedState {
     closingMoment: null,
     openingCard: null,
     flareAtByUserId: {},
+    threadReunionAtByUserId: {},
+    threads: [],
+    pendingThreads: [],
+    threadOutgoingUserIds: [],
     completedStreamIds: [],
     lamps: {},
     demoReplay
@@ -79,6 +83,9 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     const id = String(event.id ?? `recovered-${envelope.metadata.message_timestamp}`);
     state.closingMoment = null;
     state.flareAtByUserId = {};
+    state.threadReunionAtByUserId = {};
+    state.pendingThreads = [];
+    state.threadOutgoingUserIds = [];
     state.currentStream = { id, startedAt: String(event.started_at ?? envelope.metadata.message_timestamp), litUserIds: [] };
     return state;
   }
@@ -91,6 +98,8 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
       totalLamps: state.currentStream.litUserIds.length,
       returningLamps: state.currentStream.litUserIds.filter((userId) => (state.lamps[userId]?.attendedStreamIds.length ?? 0) > 1).length
     };
+    state.pendingThreads = [];
+    state.threadOutgoingUserIds = [];
     for (const lamp of Object.values(state.lamps)) {
       if (lit.has(lamp.userId)) lamp.streamsSinceLit = 0;
       else { lamp.streamsSinceLit += 1; lamp.streak = 0; }
@@ -102,6 +111,23 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   if (type === "lamplight.flare") {
     const userId = String(event.user_id ?? "");
     if (userId && state.currentStream?.id === String(event.stream_id ?? "")) state.flareAtByUserId[userId] = envelope.metadata.message_timestamp;
+    return state;
+  }
+  if (type === "lamplight.thread.tied") {
+    const userIds = [String(event.user_id_a ?? ""), String(event.user_id_b ?? "")].sort() as [string, string];
+    const streamId = String(event.stream_id ?? "");
+    if (!userIds[0] || !userIds[1] || userIds[0] === userIds[1] || !streamId) return state;
+    if (state.threads.some((thread) => thread.userIds[0] === userIds[0] && thread.userIds[1] === userIds[1])) return state;
+    if (userIds.some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return state;
+    state.threads.push({ userIds, createdAt: envelope.metadata.message_timestamp, createdStreamId: streamId });
+    state.pendingThreads = state.pendingThreads.filter((pending) => !(userIds.includes(pending.fromUserId) && userIds.includes(pending.toUserId)));
+    if (state.currentStream?.id === streamId) for (const userId of userIds) if (!state.threadOutgoingUserIds.includes(userId)) state.threadOutgoingUserIds.push(userId);
+    return state;
+  }
+  if (type === "lamplight.thread.untied") {
+    const userIds = [String(event.user_id_a ?? ""), String(event.user_id_b ?? "")].sort();
+    state.threads = state.threads.filter((thread) => !(thread.userIds[0] === userIds[0] && thread.userIds[1] === userIds[1]));
+    state.pendingThreads = state.pendingThreads.filter((pending) => !(userIds.includes(pending.fromUserId) && userIds.includes(pending.toUserId)));
     return state;
   }
   if (type !== "channel.chat.message" || !state.currentStream || !isPresenceMessage(event)) return state;
