@@ -87,3 +87,9 @@
 **Decided:** At `stream.online`, if a completed stream exists, show its ledger-backed attendance count for ten seconds before fading lamps in over one second. The returning count is the intersection of those prior attendees with viewers who relight during the current ten-second card, so it updates live. With no prior completed stream, show no card. This uses the same ledger facts that produce the prior receipt rather than storing a second copy.
 
 **Action:** Added rebuildable opening-card state, live returning-count calculation, the ten-second card and one-second fade, plus tests for counts, no-history behavior, timing, and opacity.
+
+## 2026-11-02 — Return greeting
+
+**Decided:** For three seconds after a previously attended lamp relights, show `back for stream N` beneath its full-size name plate, where `N` is the ledger-derived lifetime stream count. First-time lamps, expired greetings, dense tiers without plates, and lamps not lit this stream show nothing.
+
+**Action:** Added a deterministic greeting selector, overlay label, and tests for count, duration, and first-attendance exclusion.

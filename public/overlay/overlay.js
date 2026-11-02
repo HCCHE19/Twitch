@@ -2,7 +2,7 @@ import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/la
 import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
-import { openingCardFrame } from "/shared/memory.js";
+import { openingCardFrame, returnGreeting } from "/shared/memory.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -90,6 +90,12 @@ function render(time) {
         context.strokeStyle = `rgba(237, 201, 133, ${Math.max(.16, opacity * .3)})`; context.lineWidth = 1; context.stroke();
         context.fillStyle = `rgba(246, 232, 207, ${Math.max(.52, opacity)})`;
         context.fillText(item.lamp.displayName, item.x, labelY);
+        const greeting = returnGreeting(item.lamp, state.currentStream, Date.now());
+        if (greeting) {
+          context.fillStyle = "rgba(246,232,207,.72)";
+          context.font = `500 ${Math.max(11, labelSize * .72)}px "Space Grotesk", system-ui, sans-serif`;
+          context.fillText(greeting, item.x, labelY + labelSize * 1.35);
+        }
       } else {
         drawLamp(context, "lamplight-cluster", item.x, item.y, Math.min(item.size * 1.08, item.collisionCap), .25, 0, { detail: "essential", glowScale, glowAlpha });
         context.fillStyle = "rgba(246,232,207,.72)"; context.font = `700 ${item.size * .16}px system-ui, sans-serif`; context.textAlign = "center";

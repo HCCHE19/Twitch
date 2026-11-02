@@ -11,3 +11,10 @@ export function openingCardFrame(card, currentStream, now = Date.now()) {
   }
   return { active: false, lampOpacity: Math.min(1, Math.max(0, (age - 10_000) / 1_000)) };
 }
+
+export function returnGreeting(lamp, currentStream, now = Date.now()) {
+  if (!lamp || !currentStream || lamp.attendedStreamIds.length < 2 || lamp.lastStreamId !== currentStream.id || !currentStream.litUserIds.includes(lamp.userId)) return null;
+  const age = now - Date.parse(lamp.lastLitAt);
+  if (age < 0 || age >= 3_000) return null;
+  return `back for stream ${lamp.attendedStreamIds.length}`;
+}
