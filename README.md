@@ -35,6 +35,7 @@ The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offli
 1. Run `npm start` and leave that Terminal window open.
 2. In OBS, add a Browser source using `http://localhost:8787/overlay/`, width `1920`, and height `1080`. Leave Local file, Control audio via OBS, and custom frame rate off.
 3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat. Once lit, another message containing exactly one emote produces a 600ms flare, with a ten-second per-viewer cooldown and no counter.
+   If a previous stream exists, the band first shows its lamp count and how many of those viewers have returned, then fades the persistent lamps in after ten seconds.
 4. While live, Lamplight samples Twitch's reported `viewer_count` immediately and every 60 seconds, recording it beside the number of lamps lit at that moment.
 5. Stop the stream. Lamps extinguish in first-lit order, the band briefly reports total and returning lamps, and Twitch's `stream.offline` event automatically writes private JSON and name-only HTML under `receipts/`.
 

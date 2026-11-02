@@ -49,12 +49,19 @@ export interface ClosingMoment {
   returningLamps: number;
 }
 
+export interface OpeningCard {
+  startedAt: string;
+  previousStreamId: string;
+  previousUserIds: string[];
+}
+
 export interface DerivedState {
   schemaVersion: 1;
   lastHash: string;
   processedMessageIds: string[];
   currentStream: StreamState | null;
   closingMoment: ClosingMoment | null;
+  openingCard: OpeningCard | null;
   flareAtByUserId: Record<string, string>;
   completedStreamIds: string[];
   lamps: Record<string, LampState>;

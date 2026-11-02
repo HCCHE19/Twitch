@@ -81,3 +81,9 @@
 **Decided:** Preserve receipts made before viewer sampling and preserve a single unbroken in-memory/file ledger after mid-stream recovery.
 
 **Action:** Public rendering now gives legacy receipts an explicit no-samples comparison instead of failing, and boot recovery adds its event to the in-memory entry list immediately after appending it to disk. Updated the specification and setup documentation for sampling, closing, and flares.
+
+## 2026-11-02 — Opening memory card
+
+**Decided:** At `stream.online`, if a completed stream exists, show its ledger-backed attendance count for ten seconds before fading lamps in over one second. The returning count is the intersection of those prior attendees with viewers who relight during the current ten-second card, so it updates live. With no prior completed stream, show no card. This uses the same ledger facts that produce the prior receipt rather than storing a second copy.
+
+**Action:** Added rebuildable opening-card state, live returning-count calculation, the ten-second card and one-second fade, plus tests for counts, no-history behavior, timing, and opacity.

@@ -2,6 +2,7 @@ import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/la
 import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
+import { openingCardFrame } from "/shared/memory.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -35,12 +36,19 @@ function render(time) {
   canvas.style.opacity = preferences.hidden ? "0" : "1";
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
+  const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
     const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
     sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
     context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   }
   if (state) {
+    if (opening.active) {
+      context.fillStyle = "rgba(246,232,207,.9)";
+      context.font = `600 ${Math.max(18, innerHeight * .024)}px "Space Grotesk", system-ui, sans-serif`;
+      context.textAlign = "center";
+      context.fillText(opening.text, innerWidth / 2, baseline);
+    }
     if (closing.kind === "summary") {
       context.fillStyle = "rgba(246,232,207,.9)";
       context.font = `600 ${Math.max(18, innerHeight * .024)}px "Space Grotesk", system-ui, sans-serif`;
@@ -49,7 +57,7 @@ function render(time) {
     }
     const closingIds = state.closingMoment?.litUserIds ?? [];
     const visibleClosingIds = new Set(closing.kind === "lamps" ? closing.visibleUserIds : []);
-    const lamps = closing.kind === "lamps"
+    const lamps = opening.active ? [] : closing.kind === "lamps"
       ? closingIds.flatMap((userId) => state.lamps[userId] ? [state.lamps[userId]] : [])
       : closing.kind === "none" ? Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt)) : [];
     const visible = separateAdjacentHues(
@@ -63,7 +71,7 @@ function render(time) {
       if (item.lamp) {
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
-        const opacity = bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit);
+        const opacity = (bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit)) * opening.lampOpacity;
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);

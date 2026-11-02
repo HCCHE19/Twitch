@@ -9,6 +9,7 @@ export function emptyState(demoReplay = false): DerivedState {
     processedMessageIds: [],
     currentStream: null,
     closingMoment: null,
+    openingCard: null,
     flareAtByUserId: {},
     completedStreamIds: [],
     lamps: {},
@@ -68,6 +69,12 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   const event = envelope.payload.event ?? {};
 
   if (type === "stream.online" || type === "lamplight.stream.recovered") {
+    const previousStreamId = state.completedStreamIds.at(-1);
+    state.openingCard = previousStreamId ? {
+      startedAt: envelope.metadata.message_timestamp,
+      previousStreamId,
+      previousUserIds: Object.values(state.lamps).filter((lamp) => lamp.attendedStreamIds.includes(previousStreamId)).map((lamp) => lamp.userId)
+    } : null;
     for (const lamp of Object.values(state.lamps)) lamp.streamsSinceLit += 1;
     const id = String(event.id ?? `recovered-${envelope.metadata.message_timestamp}`);
     state.closingMoment = null;
