@@ -342,3 +342,11 @@
 - Decision: Disconnect requires confirmation, stops EventSub, revokes the active token through Twitch's documented `POST https://id.twitch.tv/oauth2/revoke`, deletes only `data/auth.json`, and returns to setup. Lamps, receipts, derived state, and `data/events.jsonl` are untouched. A same-origin control token protects the localhost POST. Reauthorization starts a fresh EventSub client in the same process.
 - Decision: generated receipts and previously generated receipt HTML served by Lamplight show **Back to controls** at the top.
 - Verification: authorization and localhost tests use fictional tokens and temporary files. A 1920×1080 Chrome check confirmed staging, unload protection, explicit save/application, saved feedback, confirmation, disconnect, and setup redirect without page errors. No `.env`, real auth file, or real Twitch token was read during implementation.
+
+## 2026-11-03 — Live sky readability and command diagnostics
+
+- Decision: the corner sky must remain legible over real 1920×1080 content: approximately 1.6× larger, at least 200px of constellation drawing, 14px minimum text, and a soft dark radial backing in the top-right corner.
+- Decision: a fragment award is acknowledged inside the lamp band. Every lamp whose ID is recorded on the hash-chained fragment event pulses once, the existing sweep crosses the sill, and a three-second `Constellation, piece N of 6` line fades below it. The panel remains the source of the persistent state.
+- Decision: `!tie`, `!untie`, `!back`, and `!closing` must never fail invisibly during a live test. Each received command writes one Terminal line with sender, applied/ignored status, and a specific reason; no chat text is added to the ledger.
+- Implementation: Twitch's documented `channel.chat.message` mention fields are handled by user ID, with display-name matching and bare-left-neighbour behavior retained. An unlit sender and a sender with no earlier left neighbour are valid ignored outcomes and are now explicit. Named, official mention-fragment, bare, pending, reciprocal, and ignored paths have Twitch-shaped tests.
+- Verification: 119 tests and TypeScript checks pass; secret scan passes. A headless Chrome check at 1920×1080 confirmed the enlarged panel and band-only fragment label with no page errors. No `.env` or real saved authentication data was accessed.

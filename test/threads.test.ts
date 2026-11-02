@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeLedgerEntry, rebuildState } from "../src/ledger.js";
 import { emptyState, reduceEnvelope } from "../src/presence.js";
-import { applyThreadCommand, applyThreadReunion } from "../src/threads.js";
+import { applyThreadCommand, applyThreadCommandDetailed, applyThreadReunion } from "../src/threads.js";
 import type { DerivedState, EventSubEnvelope } from "../src/types.js";
 // @ts-expect-error The overlay helper is intentionally plain browser JavaScript.
 import { displayedThreadStreak, placeThreadArrival, preferThreadAdjacency, threadVisuals } from "../public/shared/threads.js";
@@ -57,6 +57,26 @@ describe("red threads", () => {
     (source.payload.event!.message as { fragments: unknown[] }).fragments = [{ type: "text", text: "!tie " }, { type: "mention", text: "@Bao", mention: { user_id: "b", user_name: "Bao" } }];
     applyThreadCommand(state, source, { ...options, enabled: true });
     expect(state.pendingThreads[0]).toMatchObject({ fromUserId: "a", toUserId: "b" });
+  });
+
+  it("handles Twitch-shaped named, mention, and bare commands end to end with an explicit outcome", () => {
+    const state = setup(["a", "Alice"], ["b", "Bao"], ["c", "Chika"]);
+    const mention = chat("real-mention", "c", "Chika", "!tie @Bao");
+    (mention.payload.event!.message as { fragments: unknown[] }).fragments = [
+      { type: "text", text: "!tie ", cheermote: null, emote: null, mention: null },
+      { type: "mention", text: "@Bao", cheermote: null, emote: null, mention: { user_id: "b", user_name: "Bao", user_login: "bao" } }
+    ];
+    expect(applyThreadCommandDetailed(state, mention, { ...options, enabled: true })).toMatchObject({ command: "!tie", applied: true, reason: "pending tie shown", targetUserId: "b" });
+    const reciprocal = applyThreadCommandDetailed(state, chat("real-name", "b", "Bao", "!tie Chika"), { ...options, enabled: true });
+    expect(reciprocal).toMatchObject({ applied: true, reason: "mutual thread tied", targetUserId: "c" });
+    applyEvents(state, reciprocal!.events);
+    const bare = applyThreadCommandDetailed(state, chat("real-bare", "a", "Alice", "!tie"), { ...options, enabled: true });
+    expect(bare).toMatchObject({ applied: false, reason: "there is no lamp immediately left of the sender" });
+  });
+
+  it("explains the silent live-test rejection when the sender has not lit a lamp", () => {
+    const state = setup(["b", "Bao"]);
+    expect(applyThreadCommandDetailed(state, chat("unlit", "a", "Alice", "!tie Bao"), { ...options, enabled: true })).toMatchObject({ command: "!tie", applied: false, reason: "sender's lamp is not lit tonight" });
   });
 
   it("uses the immediately previous arrival for bare tie and untie, and does nothing without one", () => {

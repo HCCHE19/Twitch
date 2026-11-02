@@ -17,6 +17,13 @@ export function fragmentMomentFrame(earnedAt,now=Date.now(),reducedMotion=false)
   return {active:true,sweep,panelScale,pulse,settled:age>=850};
 }
 
+export function fragmentBandMoment(fragment,count,now=Date.now(),reducedMotion=false){
+  if(!fragment)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
+  const age=now-Date.parse(fragment.earnedAt);if(age<0||age>=3000)return {active:false,alpha:0,pulse:0,text:"",litUserIds:[]};
+  const alpha=age<2300?1:Math.max(0,1-(age-2300)/700),pulse=reducedMotion?(age<500?.25:0):age<650?Math.sin(Math.PI*age/650):0;
+  return {active:true,alpha,pulse,text:`${fragment.constellation}, piece ${count} of 6`,litUserIds:Array.isArray(fragment.litUserIds)?fragment.litUserIds:[]};
+}
+
 export function completionMomentFrame(earnedAt,now=Date.now(),level="normal",reducedMotion=false){
   const age=now-Date.parse(earnedAt);if(level==="quiet"||reducedMotion)return {active:false,reveal:1,flare:0,shrink:1,maxHeight:0,settled:age>=0,panelPulse:age>=0&&age<500?Math.sin(Math.PI*age/500):0};
   const sequenceAge=age-650,panelPulse=age>=4050&&age<4550?Math.sin(Math.PI*(age-4050)/500):0;if(age<0||age>=4050)return {active:false,reveal:1,flare:0,shrink:1,crossfade:1,travelAlpha:0,maxHeight:level==="big"?.5:1/3,settled:age>=4050,panelPulse};

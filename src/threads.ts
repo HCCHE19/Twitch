@@ -1,6 +1,13 @@
 import type { DerivedState, EventSubEnvelope, ThreadState } from "./types.js";
 
 export interface ThreadCommandOptions { enabled: boolean; broadcasterLogin: string; ignoredUsers?: string[] }
+export interface ThreadCommandResult {
+  command: "!tie" | "!untie";
+  applied: boolean;
+  reason: string;
+  targetUserId?: string;
+  events: EventSubEnvelope[];
+}
 
 function chatText(envelope: EventSubEnvelope): string {
   const message = envelope.payload.event?.message as { text?: unknown } | undefined;
@@ -15,6 +22,8 @@ function isModerator(event: Record<string, unknown>): boolean {
 function resolveName(query: string, userIds: string[], state: DerivedState, envelope?: EventSubEnvelope): string | null {
   const normalized = query.trim().replace(/^@/u, "").toLocaleLowerCase();
   if (!normalized) return null;
+  // Twitch channel.chat.message mention fragment fields:
+  // https://dev.twitch.tv/docs/eventsub/eventsub-reference/#channel-chat-message-event
   const fragments = envelope?.payload.event?.message && (envelope.payload.event.message as { fragments?: unknown }).fragments;
   if (Array.isArray(fragments)) {
     const mentions = fragments.flatMap((fragment) => {
@@ -50,12 +59,16 @@ function internalEnvelope(type: "tied" | "untied", source: EventSubEnvelope, str
   };
 }
 
-export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelope, options: ThreadCommandOptions): EventSubEnvelope[] {
-  if (!options.enabled || envelope.metadata.subscription_type !== "channel.chat.message" || !state.currentStream) return [];
+export function applyThreadCommandDetailed(state: DerivedState, envelope: EventSubEnvelope, options: ThreadCommandOptions): ThreadCommandResult | null {
+  if (envelope.metadata.subscription_type !== "channel.chat.message") return null;
   const text = chatText(envelope);
   const tieMatch = /^!tie(?:\s+(.+))?$/iu.exec(text);
   const untieMatch = /^!untie(?:\s+(.+))?$/iu.exec(text);
-  if (!tieMatch && !untieMatch) return [];
+  if (!tieMatch && !untieMatch) return null;
+  const command = tieMatch ? "!tie" : "!untie";
+  const ignoredResult = (reason: string, targetUserId?: string): ThreadCommandResult => ({ command, applied: false, reason, ...(targetUserId ? { targetUserId } : {}), events: [] });
+  if (!options.enabled) return ignoredResult("threads are disabled");
+  if (!state.currentStream) return ignoredResult("no stream is live");
   const event = envelope.payload.event ?? {};
   const actorId = String(event.chatter_user_id ?? "");
   const actorLogin = String(event.chatter_user_login ?? "").toLowerCase();
@@ -63,20 +76,25 @@ export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelo
   const moderator = isModerator(event);
 
   if (tieMatch) {
-    if (!actorId || ignored.has(actorLogin) || !state.currentStream.litUserIds.includes(actorId) || state.threadOutgoingUserIds.includes(actorId)) return [];
+    if (!actorId) return ignoredResult("sender id is missing");
+    if (ignored.has(actorLogin)) return ignoredResult("sender is the broadcaster or an ignored bot");
+    if (!state.currentStream.litUserIds.includes(actorId)) return ignoredResult("sender's lamp is not lit tonight");
+    if (state.threadOutgoingUserIds.includes(actorId)) return ignoredResult("sender already used their outgoing tie this stream");
     const actorIndex = state.currentStream.litUserIds.indexOf(actorId);
     const targetId = tieMatch[1]?.trim()
       ? resolveName(tieMatch[1], state.currentStream.litUserIds, state, envelope)
       : actorIndex > 0 ? state.currentStream.litUserIds[actorIndex - 1]! : null;
-    if (!targetId || targetId === actorId || state.threads.some((thread) => pairMatches(thread, actorId, targetId))) return [];
+    if (!targetId) return ignoredResult(tieMatch[1]?.trim() ? "target is not one unique lit lamp" : "there is no lamp immediately left of the sender");
+    if (targetId === actorId) return ignoredResult("a viewer cannot tie to themselves", targetId);
+    if (state.threads.some((thread) => pairMatches(thread, actorId, targetId))) return ignoredResult("those lamps are already threaded", targetId);
     const reciprocal = state.pendingThreads.find((pending) => pending.fromUserId === targetId && pending.toUserId === actorId);
     if (reciprocal) {
-      if ([actorId, targetId].some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return [];
-      return [internalEnvelope("tied", envelope, state.currentStream.id, actorId, targetId)];
+      if ([actorId, targetId].some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return ignoredResult("one lamp already has three threads", targetId);
+      return { command, applied: true, reason: "mutual thread tied", targetUserId: targetId, events: [internalEnvelope("tied", envelope, state.currentStream.id, actorId, targetId)] };
     }
     state.pendingThreads.push({ fromUserId: actorId, toUserId: targetId, createdAt: envelope.metadata.message_timestamp });
     state.threadOutgoingUserIds.push(actorId);
-    return [];
+    return { command, applied: true, reason: "pending tie shown", targetUserId: targetId, events: [] };
   }
 
   let pair: [string, string] | null = null;
@@ -103,7 +121,13 @@ export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelo
       if (leftId && actorThreads.some((thread) => pairMatches(thread, actorId, leftId))) pair = [actorId, leftId];
     }
   }
-  return pair ? [internalEnvelope("untied", envelope, state.currentStream.id, pair[0], pair[1], { actor_user_id: actorId, moderator })] : [];
+  if (!pair) return ignoredResult(moderator ? "no unique matching thread was found" : "sender has no matching thread");
+  const targetUserId = pair.find((userId) => userId !== actorId);
+  return { command, applied: true, reason: "thread removed", ...(targetUserId ? { targetUserId } : {}), events: [internalEnvelope("untied", envelope, state.currentStream.id, pair[0], pair[1], { actor_user_id: actorId, moderator })] };
+}
+
+export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelope, options: ThreadCommandOptions): EventSubEnvelope[] {
+  return applyThreadCommandDetailed(state, envelope, options)?.events ?? [];
 }
 
 export function applyThreadReunion(state: DerivedState, newlyLitUserId: string, timestamp: string): string[] {

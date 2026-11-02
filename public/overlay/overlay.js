@@ -12,7 +12,7 @@ import { flareInteractions } from "/shared/flare-interactions.js";
 import { drawThreadLines, placeThreadArrival, threadVisuals } from "/shared/threads.js";
 import { drawSkyGlyph, drawSkyOverlay, skyPanelTransitionAt, updateSkyDisplayLock } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
-import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
+import { completionMomentFrame, fragmentBandMoment, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 import { animateRowLayout, reconcileLampOrder, releaseArrivalBatch } from "/shared/row-motion.js";
 import { closingHintPosition, closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
 
@@ -75,7 +75,7 @@ function drawCompletionMoment(fragment, frame, baseline) {
   if (!fragment || !frame.active || frame.maxHeight <= 0) return;
   const fullHeight = innerHeight * frame.maxHeight, fullWidth = Math.min(innerWidth * .64, fullHeight * 2.4);
   const startX = (innerWidth - fullWidth) / 2, startY = selectedLayout === "top" ? 0 : baseline - fullHeight;
-  const panelX = innerWidth - 242, panelY = 26, targetW = 110, targetH = 72, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
+  const panelX = innerWidth - 420, panelY = 28, targetW = 210, targetH = 112, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
   const lerp = (from, to) => from + (to - from) * ease;
   context.save(); context.globalAlpha = frame.travelAlpha ?? 1;
   drawSkyGlyph(context, fragment.constellation, ["A", "B", "C", "D", "E", "F"], lerp(startX, panelX), lerp(startY, panelY), lerp(fullWidth, targetW), lerp(fullHeight, targetH), { large: true, background: false, revealProgress: frame.reveal });
@@ -115,6 +115,7 @@ function render(time) {
   const fragmentCount = latestFragment ? state.skyFragments.filter((item) => item.constellation === latestFragment.constellation).length : 0;
   const completionAt = latestFragment ? new Date(Date.parse(latestFragment.earnedAt) + 1_250).toISOString() : null;
   const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(completionAt, renderNow, momentLevel, reducedMotion.matches) : null;
+  const fragmentNoticeFrame = fragmentBandMoment(latestFragment, fragmentCount, renderNow, reducedMotion.matches);
   if (fragmentFrame) drawBandSweep(fragmentFrame, baseline);
   if (latestFragment && completionFrame) drawCompletionMoment(latestFragment, completionFrame, baseline);
   if (state) {
@@ -195,18 +196,19 @@ function render(time) {
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const pulseAt = [state.flareAtByUserId?.[item.lamp.userId], state.threadReunionAtByUserId?.[item.lamp.userId]].filter(Boolean).sort().at(-1);
         const flare = flarePulse(pulseAt, renderNow, reducedMotion.matches);
+        const fragmentPulse = fragmentNoticeFrame.active && fragmentNoticeFrame.litUserIds.includes(item.lamp.userId) ? fragmentNoticeFrame.pulse : 0;
         const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, renderNow);
         const welcome = reducedMotion.matches ? undefined : welcomeEffects[item.lamp.userId];
         const ripple = interactions.ripples[item.lamp.userId] ?? 0;
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
-        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
+        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08 + fragmentPulse * .06), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         const ignite = igniteFrames.get(item.lamp.userId); const renderY = item.y + (ignite?.yOffset ?? 0) * renderedSize;
         if (ignite?.ripple > 0 && !reducedMotion.matches) {
           context.save(); bandClip(); context.strokeStyle = `rgba(246,211,151,${(1 - ignite.ripple) * .44})`; context.lineWidth = 1.8;
           context.beginPath(); context.ellipse(item.x, baseline, renderedSize * (.25 + ignite.ripple * 1.25), 5 + ignite.ripple * 9, 0, 0, Math.PI * 2); context.stroke(); context.restore();
         }
         drawLamp(context, item.lamp.userId, item.x, renderY, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.active ? .18 : 0) + (ignite?.bloom ?? 0) * .55), glowAlpha: Math.min(1, glowAlpha * (1 + (ignite?.active ? .22 : 0) + (ignite?.bloom ?? 0) * .5)), extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0), scaleY: ignite?.scaleY ?? 1
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + fragmentPulse * .35 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.active ? .18 : 0) + (ignite?.bloom ?? 0) * .55), glowAlpha: Math.min(1, glowAlpha * (1 + fragmentPulse * .5 + (ignite?.active ? .22 : 0) + (ignite?.bloom ?? 0) * .5)), extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0), scaleY: ignite?.scaleY ?? 1
         });
         if (promisesEnabled) {
           const keptPulse = keptPromisePulse(state.promiseKeptAtByUserId?.[item.lamp.userId], renderNow, reducedMotion.matches);
@@ -255,6 +257,12 @@ function render(time) {
       const hint = closingHintPosition(laidOut[0]?.tier ?? 0, innerWidth, innerHeight, baseline, selectedLayout);
       context.fillStyle = "rgba(246,232,207,.42)"; context.font = `500 ${Math.max(12, innerHeight * .014)}px "Space Grotesk", system-ui, sans-serif`; context.textAlign = "right";
       context.fillText("back next time? type !back", hint.x, hint.y);
+    }
+    if (fragmentNoticeFrame.active && !opening.active && closing.kind === "none") {
+      context.save(); bandClip(); context.globalAlpha = fragmentNoticeFrame.alpha;
+      context.fillStyle = "rgba(246,232,207,.78)"; context.font = `500 ${Math.max(14, innerHeight * .014)}px "Space Grotesk",system-ui,sans-serif`; context.textAlign = "center";
+      const noticeY = selectedLayout === "top" ? baseline + 54 : Math.min(innerHeight * .965, baseline + 58);
+      context.fillText(fragmentNoticeFrame.text, innerWidth / 2, noticeY); context.restore();
     }
     for (const [userId, startedAt] of arrivalStarts) if (renderNow - startedAt > 1_100) arrivalStarts.delete(userId);
   }

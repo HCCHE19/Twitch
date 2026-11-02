@@ -110,15 +110,15 @@ export function updateSkyDisplayLock(lock,state) {
 
 export function drawSkyPanel(ctx,fragmentsOrModel,x,y,w,h,enlarged=false) {
   const model=Array.isArray(fragmentsOrModel)?skyPanelModel(fragmentsOrModel):fragmentsOrModel,inventory=model.inventory,current=model.current;
-  ctx.save();ctx.fillStyle="rgba(3,10,16,.48)";ctx.beginPath();ctx.roundRect(x,y,w,h,14);ctx.fill();
-  const arcLeft=current?x+w*.56:x+w*.12,arcWidth=current?w*.36:w*.76,centerX=arcLeft+arcWidth/2,centerY=y+h*.70,radiusX=arcWidth/2,radiusY=h*.34;
+  ctx.save();const backing=ctx.createRadialGradient(x+w*.55,y+h*.48,w*.08,x+w*.55,y+h*.48,w*.64);backing.addColorStop(0,"rgba(2,8,13,.82)");backing.addColorStop(.62,"rgba(2,8,13,.64)");backing.addColorStop(1,"rgba(2,8,13,0)");ctx.fillStyle=backing;ctx.fillRect(x-w*.12,y-h*.18,w*1.24,h*1.36);
+  const arcLeft=current?x+w*.60:x+w*.12,arcWidth=current?w*.32:w*.76,centerX=arcLeft+arcWidth/2,centerY=y+h*.70,radiusX=arcWidth/2,radiusY=h*.34;
   for(const [index,name] of SKY_NAMES.entries()){
     const count=inventory[name].length,angle=Math.PI+(index/(SKY_NAMES.length-1))*Math.PI,px=centerX+Math.cos(angle)*radiusX,py=centerY+Math.sin(angle)*radiusY;
     ctx.fillStyle=count===6?"rgba(248,235,210,.78)":count>0?"rgba(211,232,230,.44)":"rgba(176,207,210,.13)";
     ctx.shadowColor=count===6?"rgba(239,214,164,.35)":"transparent";ctx.shadowBlur=count===6?5:0;ctx.beginPath();ctx.arc(px,py,count===6?2.1:count>0?1.65:1.2,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
     if(count===6){ctx.strokeStyle="rgba(242,225,191,.38)";ctx.lineWidth=.75;ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.stroke()}
   }
-  if(current){const glyphX=x+10,glyphY=y+8,glyphW=w*.48,glyphH=h-(enlarged?38:28);drawSkyGlyph(ctx,current,inventory[current],glyphX,glyphY,glyphW,glyphH,{large:enlarged,background:false});ctx.fillStyle="rgba(232,239,237,.62)";ctx.font=`500 ${enlarged?13:10}px "Space Grotesk",system-ui,sans-serif`;ctx.textAlign="center";ctx.fillText(model.caption,glyphX+glyphW/2,y+h-(enlarged?11:7))}
+  if(current){const glyphX=x+8,glyphY=y+6,glyphW=Math.max(200,w*.52),glyphH=h-(enlarged?42:32);drawSkyGlyph(ctx,current,inventory[current],glyphX,glyphY,glyphW,glyphH,{large:enlarged,background:false});ctx.fillStyle="rgba(232,239,237,.72)";ctx.font=`500 ${enlarged?16:14}px "Space Grotesk",system-ui,sans-serif`;ctx.textAlign="center";ctx.fillText(model.caption,glyphX+glyphW/2,y+h-(enlarged?12:8))}
   ctx.restore();
 }
 
@@ -130,7 +130,7 @@ export function skyPanelTransitionAt(fragments=[],now=Date.now(),moments="normal
 
 export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0,progress=null) {
   const fragments=state?.skyFragments??[],{recent,isComplete,fragmentFrame,completionFrame,transition}=skyPanelTransitionAt(fragments,now,moments,reducedMotion,displayLock,completionDelay);
-  const enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18;
+  const enlarged=Boolean(openingActive&&recent),panelW=enlarged?500:400,panelH=enlarged?240:160,x=width-panelW-28,y=22;
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
   drawSkyProgress(ctx,progress,x,y+panelH,panelW);
   if(openingPulse>0){ctx.save();ctx.strokeStyle=`rgba(239,222,188,${openingPulse*.22})`;ctx.lineWidth=1.5;ctx.shadowColor="rgba(239,222,188,.25)";ctx.shadowBlur=12*openingPulse;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.stroke();ctx.restore()}

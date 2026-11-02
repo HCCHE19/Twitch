@@ -1,7 +1,7 @@
 import { describe,expect,it } from "vitest";
 import { emptyState,reduceEnvelope } from "../src/presence.js";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { completionMomentFrame,fragmentMomentFrame,igniteFrame } from "../public/shared/moments.js";
+import { completionMomentFrame,fragmentBandMoment,fragmentMomentFrame,igniteFrame } from "../public/shared/moments.js";
 
 const start="2026-11-02T00:00:00Z",at=(ms:number)=>Date.parse(start)+ms;
 describe("overlay moments",()=>{
@@ -18,6 +18,14 @@ describe("overlay moments",()=>{
   });
   it("settles a fragment in the panel without a frame-level animation",()=>{
     expect(fragmentMomentFrame(start,at(300),false).sweep).toBeGreaterThan(0);expect(fragmentMomentFrame(start,at(450),false).panelScale).toBe(1.5);expect(fragmentMomentFrame(start,at(1250),false).active).toBe(false);
+  });
+
+  it("pulses only the ledger-recorded lamps and keeps the fragment line for three seconds",()=>{
+    const earnedAt="2026-11-02T00:00:00Z",fragment={constellation:"Capricornus",earnedAt,litUserIds:["a","b"]};
+    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+325,false)).toMatchObject({active:true,text:"Capricornus, piece 1 of 6",litUserIds:["a","b"]});
+    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+325,false).pulse).toBeGreaterThan(0);
+    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+2500,false).alpha).toBeLessThan(1);
+    expect(fragmentBandMoment(fragment,1,Date.parse(earnedAt)+3000,false).active).toBe(false);
   });
   it("keeps quiet completion out of the frame and caps normal/big height",()=>{
     expect(completionMomentFrame(start,at(1000),"quiet",false).active).toBe(false);expect(completionMomentFrame(start,at(1000),"normal",false).maxHeight).toBeCloseTo(1/3);expect(completionMomentFrame(start,at(1000),"big",false).maxHeight).toBe(.5);

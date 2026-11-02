@@ -7,10 +7,10 @@ import { createFlareEnvelope, reduceEnvelope } from "./presence.js";
 import { createReceipt, writeReceiptFiles } from "./receipt.js";
 import { getLiveStream, validateToken } from "./twitch-api.js";
 import { startViewerSampler, viewerSampleEnvelope } from "./viewer-sampling.js";
-import { applyThreadCommand, applyThreadReunion } from "./threads.js";
+import { applyThreadCommandDetailed, applyThreadReunion } from "./threads.js";
 import { createSkyFragmentEnvelope } from "./sky.js";
 import { createAuthManager } from "./auth.js";
-import { applyPromiseCommand, weightedLampCount } from "./promises.js";
+import { applyPromiseCommandDetailed, weightedLampCount } from "./promises.js";
 import { createSettingsManager } from "./settings.js";
 
 async function main(): Promise<void> {
@@ -122,22 +122,27 @@ async function main(): Promise<void> {
         state.lastHash = entry.hash;
         entries.push(entry);
         await lockThreshold(envelope.metadata.message_timestamp);
-        const promiseEnvelope = applyPromiseCommand(state, envelope, { enabled: settings.get().promises, broadcasterLogin: config.channelLogin, ignoredUsers });
+        const sender = String((envelope.payload.event ?? {}).chatter_user_name ?? (envelope.payload.event ?? {}).chatter_user_login ?? "unknown");
+        const promiseResult = applyPromiseCommandDetailed(state, envelope, { enabled: settings.get().promises, broadcasterLogin: config.channelLogin, ignoredUsers });
+        const promiseEnvelope = promiseResult?.event ?? null;
         if (promiseEnvelope) {
           const promiseEntry = await appendEnvelope("data/events.jsonl", promiseEnvelope, state.lastHash);
           reduceEnvelope(state, promiseEnvelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
           state.lastHash = promiseEntry.hash; entries.push(promiseEntry);
-          console.log(promiseEnvelope.metadata.subscription_type === "lamplight.promise.made" ? "[promise] recorded" : "[promise] closing hint enabled");
         }
-        if (settings.get().threads && envelope.metadata.subscription_type === "channel.chat.message" && state.currentStream) {
-          const newlyLit = state.currentStream.litUserIds.find((userId) => !litBefore.has(userId));
-          if (newlyLit) applyThreadReunion(state, newlyLit, envelope.metadata.message_timestamp);
-          const threadEvents = applyThreadCommand(state, envelope, { enabled: true, broadcasterLogin: config.channelLogin, ignoredUsers });
-          for (const threadEnvelope of threadEvents) {
+        if (promiseResult) console.log(`[command] ${promiseResult.command} — ${sender} — ${promiseResult.applied ? "applied" : "ignored"} (${promiseResult.reason})`);
+        if (envelope.metadata.subscription_type === "channel.chat.message") {
+          const newlyLit = state.currentStream?.litUserIds.find((userId) => !litBefore.has(userId));
+          if (newlyLit && settings.get().threads) applyThreadReunion(state, newlyLit, envelope.metadata.message_timestamp);
+          const threadResult = applyThreadCommandDetailed(state, envelope, { enabled: settings.get().threads, broadcasterLogin: config.channelLogin, ignoredUsers });
+          for (const threadEnvelope of threadResult?.events ?? []) {
             const threadEntry = await appendEnvelope("data/events.jsonl", threadEnvelope, state.lastHash);
             reduceEnvelope(state, threadEnvelope, { broadcasterLogin: config.channelLogin, ignoredUsers });
             state.lastHash = threadEntry.hash; entries.push(threadEntry);
-            console.log(`[thread] ${threadEnvelope.metadata.subscription_type}`);
+          }
+          if (threadResult) {
+            const targetName = threadResult.targetUserId ? state.lamps[threadResult.targetUserId]?.displayName : null;
+            console.log(`[command] ${threadResult.command} — ${sender} — ${threadResult.applied ? "applied" : "ignored"} (${threadResult.reason}${targetName ? `: ${targetName}` : ""})`);
           }
         }
         if (flare) {
@@ -163,7 +168,7 @@ async function main(): Promise<void> {
       });
       if (envelope.metadata.subscription_type === "stream.online") void sampler.trigger();
     },
-    onChat: (displayName, text) => console.log(`[chat] ${displayName}: ${text}`),
+    onChat: (displayName, text) => { if (!/^!(?:tie|untie|back|closing)(?:\s|$)/iu.test(text.trim())) console.log(`[chat] ${displayName}: ${text}`); },
     onStream: (type, event) => console.log(`[stream] ${type}: ${JSON.stringify(event)}`)
   });
   let client = makeClient(config, identity.userId), activeToken = config.accessToken;
