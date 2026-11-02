@@ -21,6 +21,6 @@ describe("overlay moments",()=>{
   });
   it("keeps quiet completion out of the frame and caps normal/big height",()=>{
     expect(completionMomentFrame(start,at(1000),"quiet",false).active).toBe(false);expect(completionMomentFrame(start,at(1000),"normal",false).maxHeight).toBeCloseTo(1/3);expect(completionMomentFrame(start,at(1000),"big",false).maxHeight).toBe(.5);
-    expect(completionMomentFrame(start,at(3050),"normal",false).reveal).toBe(1);expect(completionMomentFrame(start,at(4050),"normal",false).active).toBe(false);
+    expect(completionMomentFrame(start,at(3050),"normal",false).reveal).toBe(1);expect(completionMomentFrame(start,at(4050),"normal",false).active).toBe(false);expect(completionMomentFrame(start,at(4300),"normal",false).panelPulse).toBeCloseTo(1);expect(completionMomentFrame(start,at(4300),"big",false).panelPulse).toBeCloseTo(1);
   });
 });

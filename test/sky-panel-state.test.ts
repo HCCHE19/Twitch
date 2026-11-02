@@ -15,6 +15,11 @@ describe("sky panel state fidelity",()=>{
     }
   });
 
+  it("keeps a completed constellation fully focused with its completion ring",()=>{
+    const state=["A","B","C","D","E","F"].map(fragment),settled=skyMomentTransition(state,true).rendered;
+    expect(settled.current).toBe("Leo");expect(settled.inventory.Leo).toEqual(["A","B","C","D","E","F"]);expect(settled.counts.Leo).toBe(6);expect(settled.ringed).toContain("Leo");
+  });
+
   it("transitions only between the real previous and current server arrays",()=>{
     const state=[fragment("A",1),fragment("B",2),fragment("C",3)];
     const pending=skyMomentTransition(state,false),settled=skyMomentTransition(state,true);

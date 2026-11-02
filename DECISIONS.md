@@ -225,3 +225,9 @@
 **Decided:** A sky moment may transition only between two real server states: the exact fragment array before the newest hash-chained event and the exact array after it. The panel, caption, and animated target must never calculate separate inventories or counts. After settling, the rendered count must equal the reducer state for every count from one through six.
 
 **Action:** Replaced the panel's parallel base/animation inventories with one shared transition model used by all render paths. Extracted demo moment events into a testable generator; fragment demo now proves it grants only Leo A, while completion demo proves it replays Leo A–E before F. Added state-fidelity tests for previous/current arrays and every settled fragment count.
+
+## 2026-11-02 — Unclipped completion handoff
+
+**Decided:** Once a completed constellation begins shrinking toward the corner, render it on the unrestricted main canvas until it reaches the panel; the completion-area clip must not follow it in flight. The arrival target is the panel's real mini-glyph rectangle. The most recently progressed constellation remains the panel focus even when complete, so its six solid regions, `6 of 6` caption, and ringed arc star persist from server state. Give the panel one restrained 500ms pulse on arrival. Normal and big share the same handoff and settled state.
+
+**Action:** Removed the completion travel clip, aligned its destination with the production panel geometry, extended the shared panel model with completed focus/ring state, added the post-arrival pulse, and added tests for persistent six-fragment focus, completion ring, and matching normal/big pulse timing.

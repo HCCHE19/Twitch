@@ -91,8 +91,8 @@ export function skyInventory(fragments=[]) {
 }
 
 export function skyPanelModel(fragments=[]) {
-  const inventory=skyInventory(fragments),recentProgress=[...fragments].reverse().find(item=>inventory[item.constellation].length>0&&inventory[item.constellation].length<6),current=recentProgress?.constellation??null;
-  return {fragments,inventory,current,counts:Object.fromEntries(SKY_NAMES.map(name=>[name,inventory[name].length]))};
+  const inventory=skyInventory(fragments),current=fragments.at(-1)?.constellation??null,counts=Object.fromEntries(SKY_NAMES.map(name=>[name,inventory[name].length]));
+  return {fragments,inventory,current,counts,ringed:SKY_NAMES.filter(name=>counts[name]===6)};
 }
 
 export function skyMomentTransition(fragments=[],settled=true) {
@@ -119,6 +119,7 @@ export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="
   const finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionFrame=recent&&isComplete?completionMomentFrame(recent.earnedAt,now,moments,reducedMotion):null;
   const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,transition=skyMomentTransition(fragments,!holdRecent);
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
+  if(completionFrame?.panelPulse>0){ctx.save();const pulse=completionFrame.panelPulse,glow=ctx.createRadialGradient(x+panelW*.28,y+panelH*.45,0,x+panelW*.28,y+panelH*.45,panelW*.42);glow.addColorStop(0,`rgba(248,231,196,${pulse*.16})`);glow.addColorStop(.55,`rgba(151,203,203,${pulse*.08})`);glow.addColorStop(1,"rgba(120,180,185,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.fill();ctx.restore()}
   const panelOnly=isComplete&&(moments==="quiet"||reducedMotion);if(recent&&fragmentFrame?.active&&(!isComplete||panelOnly)){
     const baseW=panelW*.48,baseH=panelH-(enlarged?38:28),scale=fragmentFrame.panelScale,cx=x+10+baseW/2,cy=y+8+baseH/2,collected=transition.after.inventory[recent.constellation];
     ctx.save();ctx.globalAlpha=Math.min(1,.76+fragmentFrame.pulse*.24);ctx.shadowColor="rgba(245,224,184,.32)";ctx.shadowBlur=fragmentFrame.pulse*9;drawSkyGlyph(ctx,recent.constellation,collected,cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:enlarged,background:false});ctx.restore();
