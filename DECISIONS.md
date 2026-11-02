@@ -329,3 +329,9 @@
 - Decision: put private receipt discovery at the top of the control page, newest completed stream first, with local date, lamp count, receipt link and a highlighted latest entry; show the current stream ID while live.
 - Implementation: a localhost receipt-index route returns only stream metadata and lamp counts. The control page refreshes at stream end and every five seconds, uses safe text nodes, and indicates missing HTML pages rather than providing broken links. Receipts remain on the streamer's machine.
 - Verification: build and targeted receipt-index/HTTP tests pass using synthetic fixtures. No .env or saved tokens accessed.
+
+## 2026-11-03 — One local setup and control flow
+
+- Decision: setup confirms Connected for one second then opens control; disconnected control visits return to setup. Control order is Connection, Receipts, Settings, Roll call. Keep demo controls available without a Twitch login.
+- Implementation: connection status exposes only the configured channel name and connection boolean. Reconnect starts authorization directly. Receipt rows have date, lamps and an Open receipt button, with a live stream row and automatic refresh at stream end. Settings show Saved for one second only after server persistence acknowledgement.
+- Verification: build and four targeted tests pass for redirects, connected channel metadata, section order, save acknowledgement and receipt listing. Tests use fictional state and do not read .env or saved tokens. README now directs users through setup once and then control.

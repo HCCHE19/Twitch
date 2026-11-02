@@ -8,6 +8,12 @@ button.addEventListener("click",event=>{
   setTimeout(()=>location.assign(button.href),160);
 });
 addEventListener("pageshow",()=>{navigating=false;button.classList.remove("pressed");button.removeAttribute("aria-busy")});
-if(parameters.get("connected")==="1"){status.textContent="Twitch connected. Lamplight is starting.";button.textContent="Reconnect Twitch"}
-else if(parameters.has("error"))status.textContent=parameters.get("error")==="config"?"Add TWITCH_CLIENT_SECRET to .env, then try again.":"Setup is not available yet.";
-else{const response=await fetch("/setup/status"),body=await response.json();if(body.connected){status.textContent="Twitch is connected.";button.textContent="Reconnect Twitch"}}
+if(parameters.has("error"))status.textContent=parameters.get("error")==="config"?"Add TWITCH_CLIENT_SECRET to .env, then try again.":"Setup is not available yet.";
+else {
+  try {
+    const response=await fetch("/setup/status",{cache:"no-store"});
+    if(!response.ok)throw new Error("Status unavailable");
+    const body=await response.json();
+    if(body.connected){status.textContent="Connected";button.textContent="Reconnect Twitch";setTimeout(()=>{if(!navigating)location.replace("/control")},1000)}
+  } catch {status.textContent="Could not check connection. Try Connect Twitch again."}
+}

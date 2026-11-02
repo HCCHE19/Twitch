@@ -23,7 +23,7 @@ export interface OverlayServer {
 }
 
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
-interface SetupAuth { createAuthorizationUrl: () => string; connected: () => boolean }
+interface SetupAuth { channelLogin?: string; createAuthorizationUrl: () => string; connected: () => boolean }
 
 export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN: number | "auto" = "auto", showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true, settingsManager?: SettingsManager): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
@@ -34,12 +34,15 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;
+    if (["/control", "/control/"].includes(requestPath) && !setupAuth?.connected() && !getState().demoReplay) {
+      response.writeHead(302, { Location: "/setup", "Cache-Control": "no-store" }).end(); return;
+    }
     if (requestPath === "/auth/start") {
       try { response.writeHead(302, { Location: setupAuth?.createAuthorizationUrl() ?? "/setup?error=unavailable", "Cache-Control": "no-store" }).end(); }
       catch { response.writeHead(302, { Location: "/setup?error=config", "Cache-Control": "no-store" }).end(); }
       return;
     }
-    if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false })); return; }
+    if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false, channelName: setupAuth?.connected() ? setupAuth.channelLogin ?? "" : "", demo: getState().demoReplay })); return; }
     if (requestPath === "/control/receipts") {
       try { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify(await receiptIndex())); }
       catch { response.writeHead(500).end("Could not load receipts"); }
@@ -80,7 +83,7 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
       try {
         const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown; rollCall?: unknown; settings?: unknown };
         if (message.type === "settings" && settingsManager && message.settings && typeof message.settings === "object") {
-          await settingsManager.update(message.settings as Parameters<SettingsManager["update"]>[0]); sendState(); return;
+          await settingsManager.update(message.settings as Parameters<SettingsManager["update"]>[0]); sendState(); socket.send(JSON.stringify({ type: "settings-saved" })); return;
         }
         if (message.type === "roll-call-called") {
           const stream = getState().currentStream;

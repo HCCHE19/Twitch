@@ -10,7 +10,7 @@ You need Node.js 20 or newer and OBS. In the [Twitch Developer Console](https://
 
 1. **Install.** Run `npm install`, copy `.env.example` to `.env`, then add the app's client id, client secret, and your lowercase Twitch channel login. `TWITCH_ACCESS_TOKEN` is optional compatibility for an existing manual token.
 2. **Start.** Run `npm run build && npm start` and leave that Terminal window open.
-3. **Connect.** Open `http://localhost:8787/setup`, click **Connect Twitch**, approve the single read-only `user:read:chat` scope, and return to Lamplight.
+3. **Connect.** Open `http://localhost:8787/setup`, click **Connect Twitch**, approve the single read-only `user:read:chat` scope, and return to Lamplight. Setup shows **Connected** briefly, then opens `/control`. Open `/setup` once; connection status, reconnect, receipts, settings, and roll call are all on `/control` afterward. Opening control while disconnected sends you back to setup.
 4. **Add OBS.** Add `http://localhost:8787/overlay/` as a 1920×1080 Browser source. Leave Local file, Control audio via OBS, and custom frame rate off.
 
 Viewer side: one emote lights your lamp; everything else is optional.
