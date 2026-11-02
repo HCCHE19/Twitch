@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { skyMomentTransition,skyPanelModel } from "../public/shared/sky.js";
+import { skyMomentTransition,skyPanelModel,updateSkyDisplayLock } from "../public/shared/sky.js";
 import { momentDemo } from "../src/demo-events.js";
 
 const fragment=(letter:string,index:number)=>({streamId:`s${index}`,constellation:"Leo",fragment:letter,earnedAt:`2026-11-02T00:00:0${index}Z`,litUserIds:[]});
@@ -16,8 +16,15 @@ describe("sky panel state fidelity",()=>{
   });
 
   it("keeps a completed constellation fully focused with its completion ring",()=>{
-    const state=["A","B","C","D","E","F"].map(fragment),settled=skyMomentTransition(state,true).rendered;
-    expect(settled.current).toBe("Leo");expect(settled.inventory.Leo).toEqual(["A","B","C","D","E","F"]);expect(settled.counts.Leo).toBe(6);expect(settled.ringed).toContain("Leo");
+    const state=["A","B","C","D","E","F"].map(fragment),settled=skyMomentTransition(state,true,"Leo").rendered;
+    expect(settled.current).toBe("Leo");expect(settled.inventory.Leo).toEqual(["A","B","C","D","E","F"]);expect(settled.counts.Leo).toBe(6);expect(settled.ringed).toContain("Leo");expect(settled.caption).toBe("Leo, complete");
+  });
+
+  it("locks the completed constellation until a different stream comes online",()=>{
+    const fragments=["A","B","C","D","E","F"].map((letter,index)=>({...fragment(letter,index),streamId:"stream-6"}));
+    let lock=updateSkyDisplayLock(null,{currentStream:{id:"stream-6"},skyFragments:fragments});expect(lock).toEqual({streamId:"stream-6",constellation:"Leo"});
+    lock=updateSkyDisplayLock(lock,{currentStream:null,skyFragments:fragments});expect(lock?.constellation).toBe("Leo");
+    lock=updateSkyDisplayLock(lock,{currentStream:{id:"stream-7"},skyFragments:fragments});expect(lock).toBeNull();
   });
 
   it("transitions only between the real previous and current server arrays",()=>{

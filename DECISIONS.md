@@ -231,3 +231,9 @@
 **Decided:** Once a completed constellation begins shrinking toward the corner, render it on the unrestricted main canvas until it reaches the panel; the completion-area clip must not follow it in flight. The arrival target is the panel's real mini-glyph rectangle. The most recently progressed constellation remains the panel focus even when complete, so its six solid regions, `6 of 6` caption, and ringed arc star persist from server state. Give the panel one restrained 500ms pulse on arrival. Normal and big share the same handoff and settled state.
 
 **Action:** Removed the completion travel clip, aligned its destination with the production panel geometry, extended the shared panel model with completed focus/ring state, added the post-arrival pulse, and added tests for persistent six-fragment focus, completion ring, and matching normal/big pulse timing.
+
+## 2026-11-02 — Stream-scoped completion focus
+
+**Decided:** Completion handoff must have no invisible frame: keep the travelling constellation on the unrestricted main canvas, continuously interpolate its centre and scale to the production panel glyph box, and crossfade into the panel rendering so travel alpha plus panel alpha remains one. After completion, lock that constellation as the panel's display focus for the rest of the stream and through offline. Release the display-only lock only when a different `stream.online` ID appears. The locked panel shows the full solid constellation, caption `<name>, complete`, and the ringed arc star. Apply the lock to quiet, normal, and big.
+
+**Action:** Added complementary travel/panel crossfade values, an overlay display lock keyed by stream ID, completed-glyph captions, and tests proving continuous handoff, persistent complete focus through offline, and release on the next stream.

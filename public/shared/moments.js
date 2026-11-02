@@ -19,7 +19,7 @@ export function fragmentMomentFrame(earnedAt,now=Date.now(),reducedMotion=false)
 
 export function completionMomentFrame(earnedAt,now=Date.now(),level="normal",reducedMotion=false){
   const age=now-Date.parse(earnedAt);if(level==="quiet"||reducedMotion)return {active:false,reveal:1,flare:0,shrink:1,maxHeight:0,settled:age>=0,panelPulse:age>=0&&age<500?Math.sin(Math.PI*age/500):0};
-  const sequenceAge=age-650,panelPulse=age>=4050&&age<4550?Math.sin(Math.PI*(age-4050)/500):0;if(age<0||age>=4050)return {active:false,reveal:1,flare:0,shrink:1,maxHeight:level==="big"?.5:1/3,settled:age>=4050,panelPulse};
-  const reveal=Math.max(0,Math.min(1,sequenceAge/2400)),flare=sequenceAge>=2350&&sequenceAge<2850?Math.sin(Math.PI*(sequenceAge-2350)/500):0,shrink=sequenceAge<2600?0:Math.min(1,(sequenceAge-2600)/800);
-  return {active:true,reveal,flare,shrink,maxHeight:level==="big"?.5:1/3,settled:false,panelPulse:0};
+  const sequenceAge=age-650,panelPulse=age>=4050&&age<4550?Math.sin(Math.PI*(age-4050)/500):0;if(age<0||age>=4050)return {active:false,reveal:1,flare:0,shrink:1,crossfade:1,travelAlpha:0,maxHeight:level==="big"?.5:1/3,settled:age>=4050,panelPulse};
+  const reveal=Math.max(0,Math.min(1,sequenceAge/2400)),flare=sequenceAge>=2350&&sequenceAge<2850?Math.sin(Math.PI*(sequenceAge-2350)/500):0,shrink=sequenceAge<2600?0:Math.min(1,(sequenceAge-2600)/800),crossfade=Math.max(0,Math.min(1,(shrink-.62)/.38));
+  return {active:true,reveal,flare,shrink,crossfade,travelAlpha:1-crossfade,maxHeight:level==="big"?.5:1/3,settled:false,panelPulse:0};
 }

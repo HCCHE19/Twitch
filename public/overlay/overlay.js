@@ -9,7 +9,7 @@ import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
 import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
-import { drawSkyGlyph, drawSkyOverlay } from "/shared/sky.js";
+import { drawSkyGlyph, drawSkyOverlay, updateSkyDisplayLock } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 import { animateRowLayout, arrivalStartTime, reconcileLampOrder } from "/shared/row-motion.js";
@@ -35,6 +35,7 @@ let stableOrderIds = [];
 let layoutMotion = new Map();
 const pendingArrivalIds = new Set();
 const arrivalStarts = new Map();
+let skyDisplayLock = null;
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
@@ -70,7 +71,7 @@ function drawCompletionMoment(fragment, frame, baseline) {
   const startX = (innerWidth - fullWidth) / 2, startY = selectedLayout === "top" ? 0 : baseline - fullHeight;
   const panelX = innerWidth - 242, panelY = 26, targetW = 110, targetH = 72, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
   const lerp = (from, to) => from + (to - from) * ease;
-  context.save();
+  context.save(); context.globalAlpha = frame.travelAlpha ?? 1;
   drawSkyGlyph(context, fragment.constellation, ["A", "B", "C", "D", "E", "F"], lerp(startX, panelX), lerp(startY, panelY), lerp(fullWidth, targetW), lerp(fullHeight, targetH), { large: true, background: false, revealProgress: frame.reveal });
   if (frame.flare > 0) {
     const glow = context.createLinearGradient(0, baseline - 30, 0, baseline + 30);
@@ -92,7 +93,7 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, renderNow);
-  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches);
+  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock);
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
@@ -250,6 +251,7 @@ function connect() {
         if (changed && Math.abs(receivedAt - Date.parse(lamp.lastLitAt)) < 5_000) pendingArrivalIds.add(lamp.userId);
       }
       state = nextState; selectedLayout = packet.layout === "top" ? "top" : "bottom";
+      skyDisplayLock = updateSkyDisplayLock(skyDisplayLock, state);
       thresholdN = packet.thresholdN ?? 10;
       showNames = packet.showNames !== false;
       threadsEnabled = packet.threadsEnabled === true;
