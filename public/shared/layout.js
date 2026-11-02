@@ -20,11 +20,6 @@ function validPosition(row, position, hue, hueFor) {
   return (!left || hueDistance(hueFor(left), hue) >= 45) && (!right || hueDistance(hueFor(right), hue) >= 45);
 }
 
-function neighbourClearance(row, position, hue, hueFor) {
-  const neighbours = [row[position - 1], row[position]].filter(Boolean);
-  return neighbours.length ? Math.min(...neighbours.map((item) => hueDistance(hueFor(item), hue))) : 180;
-}
-
 function repairHueRow(source, hueFor) {
   for (let start = 0; start < source.length; start += 1) {
     const remaining = source.filter((_, index) => index !== start);
@@ -53,17 +48,15 @@ export function separateAdjacentHues(items, hueFor, onImpossible = () => {}) {
   for (const item of source) {
     const hue = hueFor(item);
     const natural = row.length;
+    if (validPosition(row, natural, hue, hueFor)) { row.push(item); continue; }
     const local = [];
-    for (let position = natural; position >= Math.max(0, natural - 3); position -= 1) {
-      if (validPosition(row, position, hue, hueFor)) local.push(position);
-    }
+    for (let position = natural - 1; position >= Math.max(0, natural - 3); position -= 1) if (validPosition(row, position, hue, hueFor)) local.push(position);
     const wider = local.length ? [] : Array.from({ length: row.length + 1 }, (_, position) => position).filter((position) => validPosition(row, position, hue, hueFor));
     const candidates = local.length ? local : wider;
     if (!candidates.length) {
       row.push(item);
       continue;
     }
-    candidates.sort((left, right) => neighbourClearance(row, right, hue, hueFor) - neighbourClearance(row, left, hue, hueFor) || Math.abs(natural - left) - Math.abs(natural - right));
     row.splice(candidates[0], 0, item);
   }
   const collisions = row.slice(1).filter((item, index) => hueDistance(hueFor(item), hueFor(row[index])) < 45).length;

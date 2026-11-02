@@ -12,6 +12,7 @@ import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
 import { drawSkyGlyph, drawSkyOverlay } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
+import { animateRowLayout, arrivalStartTime, reconcileLampOrder } from "/shared/row-motion.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -30,6 +31,10 @@ let windEnabled = false;
 let momentLevel = "normal";
 let windTracker = { streamId: null, startedAt: null, lastTriggeredAt: null, signature: "", direction: 1 };
 let waveTracker = { streamId: null, fired: false, startedAt: null };
+let stableOrderIds = [];
+let layoutMotion = new Map();
+const pendingArrivalIds = new Set();
+const arrivalStarts = new Map();
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
@@ -79,6 +84,7 @@ function drawCompletionMoment(fragment, frame, baseline) {
 }
 
 function render(time) {
+  const renderNow = Date.now();
   context.clearRect(0, 0, innerWidth, innerHeight);
   if (previewBackground) {
     const backdrop = context.createLinearGradient(0, 0, innerWidth, innerHeight);
@@ -87,11 +93,11 @@ function render(time) {
   }
   canvas.style.opacity = preferences.hidden ? "0" : "1";
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
-  const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
-  const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
-  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, Date.now(), selectedLayout, momentLevel, reducedMotion.matches);
-  windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, Date.now(), windEnabled);
-  const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, Date.now());
+  const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches);
+  const opening = openingCardFrame(state?.openingCard, state?.currentStream, renderNow);
+  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches);
+  windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
+  const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
   const rollCall = rollCallFrame(preferences, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
@@ -100,9 +106,9 @@ function render(time) {
     context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   }
   const latestFragment = skyEnabled ? state?.skyFragments?.at(-1) : null;
-  const fragmentFrame = latestFragment ? fragmentMomentFrame(latestFragment.earnedAt, Date.now(), reducedMotion.matches) : null;
+  const fragmentFrame = latestFragment ? fragmentMomentFrame(latestFragment.earnedAt, renderNow, reducedMotion.matches) : null;
   const fragmentCount = latestFragment ? state.skyFragments.filter((item) => item.constellation === latestFragment.constellation).length : 0;
-  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(latestFragment.earnedAt, Date.now(), momentLevel, reducedMotion.matches) : null;
+  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(latestFragment.earnedAt, renderNow, momentLevel, reducedMotion.matches) : null;
   if (fragmentFrame) drawBandSweep(fragmentFrame, baseline);
   if (latestFragment && completionFrame) drawCompletionMoment(latestFragment, completionFrame, baseline);
   if (state) {
@@ -120,19 +126,27 @@ function render(time) {
     }
     const closingIds = state.closingMoment?.litUserIds ?? [];
     const visibleClosingIds = new Set(closing.kind === "lamps" ? closing.visibleUserIds : []);
-    const lamps = opening.active ? [] : closing.kind === "lamps"
-      ? closingIds.flatMap((userId) => state.lamps[userId] ? [state.lamps[userId]] : [])
-      : closing.kind === "none" ? Object.values(state.lamps).sort((a, b) => b.lastLitAt.localeCompare(a.lastLitAt)) : [];
-    const adjacencyOrdered = threadsEnabled ? preferThreadAdjacency(selectVisibleLamps(lamps), state.threads, state.currentStream?.litUserIds) : selectVisibleLamps(lamps);
-    const visible = separateAdjacentHues(
-      adjacencyOrdered,
-      (item) => generateLamp(item.lamp.userId).hue,
+    const allLamps = Object.values(state.lamps);
+    stableOrderIds = reconcileLampOrder(
+      stableOrderIds, allLamps, (lamp) => generateLamp(lamp.userId).hue,
       ({ rowLength, collisions }) => console.warn(`[layout] ${collisions} unavoidable hue-distance violation(s) at row length ${rowLength}`)
     );
+    let allOrdered = stableOrderIds.flatMap((userId) => state.lamps[userId] ? [{ lamp: state.lamps[userId] }] : []);
+    if (threadsEnabled) {
+      allOrdered = separateAdjacentHues(preferThreadAdjacency(allOrdered, state.threads, state.currentStream?.litUserIds), (item) => generateLamp(item.lamp.userId).hue);
+      stableOrderIds = allOrdered.map((item) => item.lamp.userId);
+    }
+    const allowedIds = opening.active ? new Set() : closing.kind === "lamps" ? new Set(closingIds) : closing.kind === "none" ? new Set(allLamps.map((lamp) => lamp.userId)) : new Set();
+    const visible = selectVisibleLamps(allOrdered.filter((item) => allowedIds.has(item.lamp.userId)).map((item) => item.lamp));
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
-    const welcomeEffects = neighbourWelcome(visible, state.currentStream, Date.now());
-    const laidOut = layout(visible);
+    const welcomeEffects = neighbourWelcome(visible, state.currentStream, renderNow);
+    const targetLayout = layout(visible);
+    const motion = animateRowLayout(layoutMotion, targetLayout, renderNow);
+    layoutMotion = motion.tracker;
+    const gapOpened = motion.movedExisting.some((userId) => !pendingArrivalIds.has(userId));
+    for (const userId of pendingArrivalIds) { arrivalStarts.set(userId, arrivalStartTime(renderNow, gapOpened)); pendingArrivalIds.delete(userId); }
+    const laidOut = motion.items;
     const threadLines = threadsEnabled ? threadVisuals(laidOut, state) : { pending: [], solid: [], waiting: [] };
     for (const line of threadLines.pending) {
       context.save(); context.setLineDash([6, 8]); context.strokeStyle = "rgba(198,74,76,.38)"; context.lineWidth = 1.2;
@@ -147,8 +161,11 @@ function render(time) {
       context.strokeStyle = "rgba(204,68,72,.48)"; context.lineWidth = 1.4; context.beginPath(); context.moveTo(startX, startY); context.bezierCurveTo(startX, startY + line.from.size * .28, endX, endY - line.from.size * .14, endX, endY); context.stroke();
       context.fillStyle = "rgba(204,68,72,.62)"; context.beginPath(); context.arc(endX, endY, Math.max(2, line.from.size * .022), 0, Math.PI * 2); context.fill();
     }
-    const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, Date.now());
-    const igniteFrames = new Map(laidOut.flatMap((item) => item.lamp ? [[item.lamp.userId, igniteFrame(item.lamp.lastLitAt, Date.now(), reducedMotion.matches, momentLevel)]] : []));
+    const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, renderNow);
+    const igniteFrames = new Map(laidOut.flatMap((item) => {
+      if (!item.lamp) return []; const visualStart = arrivalStarts.get(item.lamp.userId); const litAt = visualStart === undefined ? item.lamp.lastLitAt : new Date(visualStart).toISOString();
+      return [[item.lamp.userId, igniteFrame(litAt, renderNow, reducedMotion.matches, momentLevel)]];
+    }));
     const arrivalNudges = {};
     for (const [index, item] of laidOut.entries()) {
       if (!item.lamp) continue; const arrival = igniteFrames.get(item.lamp.userId); if (!arrival?.nudge) continue;
@@ -166,14 +183,15 @@ function render(time) {
     }
     for (const [itemIndex, item] of laidOut.entries()) {
       if (item.lamp) {
+        const arrivalStart = arrivalStarts.get(item.lamp.userId); if (arrivalStart !== undefined && renderNow < arrivalStart) continue;
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
         const opacity = (bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit)) * opening.lampOpacity;
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const pulseAt = [state.flareAtByUserId?.[item.lamp.userId], state.threadReunionAtByUserId?.[item.lamp.userId]].filter(Boolean).sort().at(-1);
-        const flare = flarePulse(pulseAt, Date.now(), reducedMotion.matches);
-        const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, Date.now());
+        const flare = flarePulse(pulseAt, renderNow, reducedMotion.matches);
+        const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, renderNow);
         const welcome = reducedMotion.matches ? undefined : welcomeEffects[item.lamp.userId];
         const ripple = interactions.ripples[item.lamp.userId] ?? 0;
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
@@ -204,7 +222,7 @@ function render(time) {
         context.strokeStyle = `rgba(237, 201, 133, ${Math.max(.16, opacity * .3)})`; context.lineWidth = 1; context.stroke();
         context.fillStyle = `rgba(246, 232, 207, ${Math.max(.52, opacity)})`;
         context.fillText(item.lamp.displayName, item.x, labelY);
-        const greeting = returnGreeting(item.lamp, state.currentStream, Date.now());
+        const greeting = returnGreeting(item.lamp, state.currentStream, renderNow);
         if (greeting) {
           context.fillStyle = "rgba(246,232,207,.72)";
           context.font = `500 ${Math.max(11, labelSize * .72)}px ${LABEL_FONT_FALLBACK}`;
@@ -216,6 +234,7 @@ function render(time) {
         context.fillText(`+${item.cluster}`, item.x, item.y + item.size * .25);
       }
     }
+    for (const [userId, startedAt] of arrivalStarts) if (renderNow - startedAt > 1_100) arrivalStarts.delete(userId);
   }
   if (!reducedMotion.matches) animationFrame = requestAnimationFrame(render);
 }
@@ -228,7 +247,12 @@ function connect() {
   socket.addEventListener("message", (message) => {
     const packet = JSON.parse(message.data);
     if (packet.type === "state") {
-      state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
+      const nextState = packet.state, receivedAt = Date.now();
+      for (const lamp of Object.values(nextState.lamps ?? {})) {
+        const changed = state?.lamps?.[lamp.userId]?.lastLitAt !== lamp.lastLitAt;
+        if (changed && Math.abs(receivedAt - Date.parse(lamp.lastLitAt)) < 5_000) pendingArrivalIds.add(lamp.userId);
+      }
+      state = nextState; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       thresholdN = packet.thresholdN ?? 10;
       showNames = packet.showNames !== false;
       threadsEnabled = packet.threadsEnabled === true;

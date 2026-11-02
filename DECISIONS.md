@@ -213,3 +213,9 @@
 **Decided:** Preserve the shared real/replay trigger path through each lamp's reducer-derived `lastLitAt`; the replay was not bypassing moments. Make arrival unmistakable: begin 1.05 lamp-heights above the sill, use a 350ms ease-in fall, squash vertically by 7.5% on landing, rebound slightly, and start bloom/ripple at contact. Give every fresh lamp a temporary glow lift so seeded pastel/complement flame colours cannot read as dim during arrival.
 
 **Action:** Re-timed and strengthened the ignite renderer, added base-anchored vertical squash support to the lamp renderer, increased the sill-ring and wick-bloom legibility, and added an integration test proving replayed and real chat events produce the same active ignite timestamp.
+
+## 2026-11-02 — Stable slot before arrival
+
+**Decided:** Resolve a new lamp's permanent hue-safe slot before it becomes visible. Preserve the existing row order across state packets. If insertion or a density-tier recomputation changes existing targets, ease those lamps horizontally and in size for 300ms, keep the newcomer hidden while the gap opens, then start its drop directly above the final slot. A lamp's x-position at landing must equal its steady-state x-position, and established lamps may slide but never jump.
+
+**Action:** Added persistent row reconciliation, natural-slot-first hue insertion, frame-to-frame position/size interpolation, delayed arrival starts for gap opening, and tests for final-position landing, tier easing, forced insertion, and demo ordering. Changed the third moment-demo identity to a deterministic hue seed that lets Moments 1–3 remain left-to-right without weakening the colour rule.
