@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Lamplight fictional sample receipt</title>
+  <style>
+    @font-face{font-family:Space;src:url(./fonts/SpaceGrotesk-wght.woff2)}
+    *{box-sizing:border-box}body{margin:0;padding:48px;background:#071014;color:#f5e9cf;font:16px Space,system-ui,sans-serif}
+    main{max-width:820px;margin:auto}header{padding-bottom:24px;border-bottom:1px solid #294048}h1{margin:0 0 8px;color:#ffc56f}
+    .comparison{margin:18px 0;padding:14px 16px;border:1px solid #294048;border-radius:10px;background:#0b181d}.comparison strong{display:block;color:#b8cbc9;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+    article{display:flex;align-items:center;gap:22px;padding:14px 0;border-bottom:1px solid #182c32}canvas{width:120px;height:120px}
+    h2,p{margin:4px 0}time,.seal{color:#8eaaa9;font-size:13px}
+  </style>
+</head>
+<body>
+<main>
+  <header><h1>Presence Receipt</h1><p>Fictional public sample</p><p class="seal">3 present · Public view · names only</p></header>
+  <section class="comparison"><strong>Declared versus verified presence</strong><p>Twitch reported 5 viewers at peak; 3 lit a lamp.</p></section>
+  <section id="rows"></section>
+</main>
+<script type="module">
+  import { drawLamp } from "./shared/lamp.js";
+  const rows = [
+    { name: "Avery", seed: "fictional-avery", streak: 1, streams: 1 },
+    { name: "Mina", seed: "fictional-mina", streak: 3, streams: 5 },
+    { name: "Rowan", seed: "fictional-rowan", streak: 2, streams: 4 }
+  ];
+  const container = document.querySelector("#rows");
+  rows.forEach((row) => {
+    const article = document.createElement("article");
+    article.innerHTML = `<canvas width="180" height="180"></canvas><div><h2>${row.name}</h2><p>Streak ${row.streak} · ${row.streams} stream${row.streams === 1 ? "" : "s"} attended</p><time>Fictional timestamp</time></div>`;
+    container.append(article);
+    const context = article.querySelector("canvas").getContext("2d");
+    context.scale(1.5, 1.5);
+    drawLamp(context, row.seed, 60, 92, 100, 1, 0);
+  });
+</script>
+</body>
+</html>

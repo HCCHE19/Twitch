@@ -111,3 +111,9 @@
 **Decided:** When the current stream first reaches `THRESHOLD_N` lit lamps, run one left-to-right wave with a 100ms stagger and roughly 300ms emphasis per lamp. It has no text, bar, count, or ledger event and cannot fire twice in one stream. `THRESHOLD_N` is a positive integer from `.env`, default 10; reduced-motion mode suppresses the wave.
 
 **Action:** Added validated threshold configuration, one-shot per-stream tracking, overlay size/glow wave, and tests for threshold crossing, no repeat, new-stream reset, direction, and duration.
+
+## 2026-11-02 — GitHub Pages receipt export
+
+**Decided:** `npm run export` produces a self-contained `docs/` site from the fictional public sample, production lamp renderer, Space Grotesk font, and OFL licence. Export rewrites root-relative asset paths for the `/Twitch/` project Pages location. The README links to the Pages URL while continuing to label the committed receipt as fictional sample data.
+
+**Action:** Added the export CLI, package script, generated Pages artifacts, README link, and an export-output validation step.

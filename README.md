@@ -1,5 +1,7 @@
 # Lamplight
 
+[See a real receipt](https://hcche19.github.io/Twitch/)
+
 Lamplight gives a silent Twitch viewer one gentle action: send `!lamp`, `!lurk`, or one emote by itself. Their persistent, procedurally generated lamp brightens on the OBS overlay. When the stream ends, Lamplight seals a tamper-evident Presence Receipt from its EventSub ledger. It is attendance, not a leaderboard or recap.
 
 All lamp artwork and motion are procedurally generated in this repo; the only bundled asset is the Space Grotesk font under the OFL.
@@ -85,3 +87,5 @@ These sources motivate the problem; no study yet shows that lightweight presence
 Real `data/` and `.env` are gitignored. Private receipt JSON may contain Twitch user IDs because verification needs stable identity; public receipt HTML contains display names only. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
 
 The committed [fictional sample receipt](public/receipt/sample.html) contains names only. It is a design sample, not evidence from a real stream.
+
+Run `npm run export` to rebuild the self-contained GitHub Pages version in `docs/` from that sample and the production lamp renderer.
