@@ -105,3 +105,9 @@
 **Decided:** Public receipt search matches display names case-insensitively and highlights the whole row and lamp without exposing IDs. Every row shows exactly ten attendance dots, oldest on the left; when fewer than ten streams exist, unavailable earlier positions are empty. Dot values are derived while sealing from the ledger-backed completed/current stream IDs and lamp attendance, with no new runtime store.
 
 **Action:** Added name search, row/lamp highlighting, ten-dot ledger-derived history, legacy fallback, and tests for the current-stream dot count and public controls.
+
+## 2026-11-02 — Threshold wave
+
+**Decided:** When the current stream first reaches `THRESHOLD_N` lit lamps, run one left-to-right wave with a 100ms stagger and roughly 300ms emphasis per lamp. It has no text, bar, count, or ledger event and cannot fire twice in one stream. `THRESHOLD_N` is a positive integer from `.env`, default 10; reduced-motion mode suppresses the wave.
+
+**Action:** Added validated threshold configuration, one-shot per-stream tracking, overlay size/glow wave, and tests for threshold crossing, no repeat, new-stream reset, direction, and duration.

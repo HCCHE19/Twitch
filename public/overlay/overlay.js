@@ -4,6 +4,7 @@ import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
 import { openingCardFrame, returnGreeting } from "/shared/memory.js";
 import { rollCallFrame } from "/shared/roll-call.js";
+import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -14,6 +15,8 @@ let state = null;
 let selectedLayout = "bottom";
 let preferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
 let animationFrame = 0;
+let thresholdN = 10;
+let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
 function resize() {
@@ -69,7 +72,7 @@ function render(time) {
     );
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
-    for (const item of layout(visible)) {
+    for (const [itemIndex, item] of layout(visible).entries()) {
       if (item.lamp) {
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
@@ -77,10 +80,11 @@ function render(time) {
         const grownSize = item.size * lampScale(item.lamp.lifetimeLights);
         const baseRenderedSize = item.tier === 0 ? grownSize : Math.min(grownSize, item.collisionCap);
         const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
+        const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, Date.now());
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
-        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale, item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
+        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, opacity, reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35), glowAlpha
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25), glowAlpha
         });
         if (item.tier !== 0 && !isRollCallCurrent) continue;
         const labelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
@@ -118,6 +122,8 @@ function connect() {
     const packet = JSON.parse(message.data);
     if (packet.type === "state") {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
+      thresholdN = packet.thresholdN ?? 10;
+      waveTracker = updateWaveTracker(waveTracker, state.currentStream?.id, state.currentStream?.litUserIds.length ?? 0, thresholdN);
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);

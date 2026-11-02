@@ -57,6 +57,15 @@ export async function loadOverlayLayout(env = process.env): Promise<OverlayLayou
   return layout;
 }
 
+export async function loadThresholdN(env = process.env): Promise<number> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const threshold = Number(env.THRESHOLD_N?.trim() || fileValues.THRESHOLD_N?.trim() || "10");
+  if (!Number.isInteger(threshold) || threshold < 1) throw new Error("THRESHOLD_N must be a positive integer");
+  return threshold;
+}
+
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
   const values = JSON.parse(await readFile(path, "utf8")) as unknown;
   if (!Array.isArray(values) || values.some((value) => typeof value !== "string")) {
