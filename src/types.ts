@@ -77,6 +77,7 @@ export interface PresenceReceiptRow {
   lifetimeStreams: number;
   sourceMessageId: string;
   recentAttendance: boolean[];
+  company: string[];
 }
 
 export interface ViewerSample {

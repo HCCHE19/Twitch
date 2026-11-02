@@ -141,3 +141,9 @@
 **Decided:** The latest flare gives its immediate rendered neighbours a one-third-strength pulse beginning 200ms later and lasting 600ms. If the two most recent distinct viewers flare within five seconds, draw a thin spark between their current lamp positions for 400ms. Both are overlay-only, reuse existing flare timestamps, and are suppressed by reduced-motion mode.
 
 **Action:** Added deterministic ripple/spark derivation, overlay drawing, and tests for adjacency, delay, relative strength, distinct-viewer window, and duration.
+
+## 2026-11-02 — Receipt company
+
+**Decided:** Each receipt row lists up to three display names whose lamps share the most attended stream IDs with that viewer. Exclude self and zero-overlap lamps; rank by shared count descending then display name for deterministic ties. Store and expose display names only in the public row.
+
+**Action:** Added ledger-derived co-attendance ranking, receipt rendering, legacy fallback, documentation, and ranking/cap tests.

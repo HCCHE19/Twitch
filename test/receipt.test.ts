@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeLedgerEntry, rebuildState } from "../src/ledger.js";
-import { createReceipt, receiptHtml, verifyReceipt } from "../src/receipt.js";
+import { createReceipt, receiptHtml, sharedCompany, verifyReceipt } from "../src/receipt.js";
 import type { EventSubEnvelope, LedgerEntry } from "../src/types.js";
 
 const envelope = (id: string, type: string, time: string, event: Record<string, unknown>): EventSubEnvelope => ({ metadata: { message_id: id, message_type: "notification", message_timestamp: time, subscription_type: type }, payload: { event } });
@@ -55,5 +55,17 @@ describe("presence receipts", () => {
     const legacy = { ...receipt } as Partial<typeof receipt>;
     delete legacy.attendance;
     expect(receiptHtml(legacy as typeof receipt)).toContain("No viewer-count samples were available for this stream.");
+  });
+
+  it("lists up to three display names with the most shared streams", () => {
+    const lamp = (userId: string, displayName: string, attendedStreamIds: string[]) => ({ userId, displayName, attendedStreamIds });
+    const lamps = {
+      me: lamp("me", "Me", ["s1", "s2", "s3"]),
+      a: lamp("a", "Avery", ["s1", "s2", "s3"]),
+      b: lamp("b", "Bao", ["s2", "s3"]),
+      c: lamp("c", "Chika", ["s1"]),
+      d: lamp("d", "Dara", ["other"])
+    } as unknown as Parameters<typeof sharedCompany>[1];
+    expect(sharedCompany("me", lamps)).toEqual(["Avery", "Bao", "Chika"]);
   });
 });
