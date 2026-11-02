@@ -1,3 +1,4 @@
+import { receiptIndex } from "./receipt-index.js";
 import { resolveThreshold } from "./sky-threshold.js";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
@@ -39,6 +40,11 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
       return;
     }
     if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false })); return; }
+    if (requestPath === "/control/receipts") {
+      try { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify(await receiptIndex())); }
+      catch { response.writeHead(500).end("Could not load receipts"); }
+      return;
+    }
     const receiptRequest = requestPath.startsWith("/receipts/");
     const relative = requestPath === "/" || requestPath === "/overlay" || requestPath === "/overlay/"
       ? "overlay/index.html"

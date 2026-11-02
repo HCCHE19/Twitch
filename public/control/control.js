@@ -31,6 +31,8 @@ function connect() {
   socket.addEventListener("message", (event) => {
     const packet = JSON.parse(event.data);
     if (packet.type === "state") {
+      document.querySelector("#live-stream").textContent = packet.state?.currentStream ? `Live now · Stream ID: ${packet.state.currentStream.id}` : "Currently offline";
+      if (latest?.state?.currentStream?.id && !packet.state?.currentStream) refreshReceipts();
       latest = packet; compact.checked = Boolean(packet.preferences?.compact); hidden.checked = Boolean(packet.preferences?.hidden); rollCall.checked = Boolean(packet.preferences?.rollCall);
       const settings = packet.settings; if (settings) { for (const key of ["sky", "threads", "wind", "promises", "showNames"]) fields[key].checked = Boolean(settings[key]); fields.moments.value = settings.moments; fields.thresholdN.value = String(settings.thresholdN); fields.layout.value = settings.layout; }
       document.querySelector("#threshold-current").textContent = `Auto: ${packet.autoThresholdN ?? 10} lamps. ${packet.state?.currentStream ? `This stream: ${packet.thresholdN} (fixed).` : `Next stream: ${packet.thresholdN}.`}`;
@@ -43,3 +45,27 @@ compact.addEventListener("change", send); hidden.addEventListener("change", send
 Object.values(fields).forEach((field) => field.addEventListener("change", sendSettings));
 called.addEventListener("click", () => { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "roll-call-called" })); });
 setInterval(updateCurrent, 250); connect();
+
+let loadingReceipts = false;
+async function refreshReceipts() {
+  if (loadingReceipts) return;
+  loadingReceipts = true;
+  try {
+    const response = await fetch("/control/receipts", { cache: "no-store" });
+    if (!response.ok) throw new Error("Receipt list unavailable");
+    const receipts = await response.json(), list = document.querySelector("#receipts-list");
+    list.replaceChildren();
+    receipts.forEach((receipt, index) => {
+      const row = document.createElement("li"); if(index === 0) row.className = "latest-receipt";
+      const date = new Date(receipt.startedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      const title = document.createElement("strong"); title.textContent = `${index === 0 ? "Latest · " : ""}${date}`;
+      const count = document.createElement("span"); count.textContent = `${receipt.lampCount} lamps`;
+      const link = document.createElement(receipt.url ? "a" : "span");
+      if(receipt.url) { link.href = receipt.url; link.textContent = "View receipt"; } else link.textContent = "Receipt page not available yet";
+      row.append(title, count, link); list.append(row);
+    });
+    document.querySelector("#receipts-status").textContent = receipts.length ? "Private receipts on this Mac. Dates use your local time." : "No completed stream receipts yet.";
+  } catch { document.querySelector("#receipts-status").textContent = "Could not load receipts. Retrying shortly."; }
+  finally { loadingReceipts = false; }
+}
+refreshReceipts(); setInterval(refreshReceipts, 5000);

@@ -19,7 +19,7 @@ Lamplight subscribes to `channel.chat.message`, `stream.online`, and `stream.off
 
 ## Optional controls and features
 
-Open `http://localhost:8787/control/` to change Sky, Threads, Wind, Promises, name plates, moment level, fragment threshold, and top/bottom layout live. The same private page controls compact mode, hiding the band, and roll call. Settings are stored locally in `data/settings.json`; `.env` remains credentials-only.
+Open `http://localhost:8787/control/` to find private receipts at the top (newest first, latest highlighted), see the live stream ID, and change Sky, Threads, Wind, Promises, name plates, moment level, fragment threshold, and top/bottom layout live. The same private page controls compact mode, hiding the band, and roll call. Settings are stored locally in `data/settings.json`; `.env` remains credentials-only.
 
 - **Memory:** prior lamps return dim, relighting shows lifetime attendance, `!back` creates a no-pressure promise, and a kept promise gives a gold landing pulse and extra fragment-threshold weight.
 - **Flares and wind:** an already-lit viewer's single Twitch emote gives a cooldown-limited flare. Neighbours ripple; two nearby flares can spark; five different flares can trigger wind when enabled.

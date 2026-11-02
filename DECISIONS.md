@@ -323,3 +323,9 @@
 - Decision: Reconnect explicitly reopens authorization and shows a short pressed state.
 - Implementation: authorization requests include Twitch's documented force_verify=true and a fresh CSRF state. Setup displays Opening Twitch with 160ms pressed feedback before navigation; returning via browser history clears the busy state. Modified clicks retain native link behavior.
 - Verification: targeted authorization, setup-page and overlay-server tests use fictional credentials and mocked environment loading. Callback tests use an ephemeral port to leave the running app untouched. No .env or real saved tokens accessed; live Twitch consent remains a user check.
+
+## 2026-11-03 — Receipts from the control page
+
+- Decision: put private receipt discovery at the top of the control page, newest completed stream first, with local date, lamp count, receipt link and a highlighted latest entry; show the current stream ID while live.
+- Implementation: a localhost receipt-index route returns only stream metadata and lamp counts. The control page refreshes at stream end and every five seconds, uses safe text nodes, and indicates missing HTML pages rather than providing broken links. Receipts remain on the streamer's machine.
+- Verification: build and targeted receipt-index/HTTP tests pass using synthetic fixtures. No .env or saved tokens accessed.
