@@ -78,7 +78,7 @@ for (const envelope of envelopes) {
   const flare = night ? createFlareEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" }) : null;
   const before = new Set(state.currentStream?.litUserIds ?? []);
   reduceEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" });
-  const threshold = thresholdEnvelope(state, night ? 3 : 10, replayEnvelope.metadata.message_timestamp);
+  const threshold = thresholdEnvelope(state, night ? 3 : 10, replayEnvelope.metadata.message_timestamp, night ? 1 : 10);
   if (threshold) reduceEnvelope(state, threshold, { broadcasterLogin: "demo_broadcaster" });
   if (night && replayEnvelope.metadata.subscription_type === "channel.chat.message" && state.currentStream) {
     const newlyLit = state.currentStream.litUserIds.find((userId) => !before.has(userId));

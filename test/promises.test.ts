@@ -5,7 +5,7 @@ import { applyPromiseCommand, weightedLampCount } from "../src/promises.js";
 import { createReceipt, receiptHtml } from "../src/receipt.js";
 import type { EventSubEnvelope, LedgerEntry } from "../src/types.js";
 // @ts-expect-error Browser helper is intentionally plain JavaScript.
-import { openingCardFrame } from "../public/shared/memory.js";
+import { returnCardFrame } from "../public/shared/memory.js";
 // @ts-expect-error Browser helper is intentionally plain JavaScript.
 import { closingHintPosition, closingHintVisible } from "../public/shared/promises.js";
 
@@ -23,6 +23,24 @@ function appendPromise(state: ReturnType<typeof emptyState>, source: EventSubEnv
 }
 
 describe("return promises", () => {
+  it("counts a promise kept after the return card in sky weight and the final receipt", () => {
+    const state = emptyState(), entries: LedgerEntry[] = [];
+    const apply = (event: EventSubEnvelope) => { entries.push(makeLedgerEntry(event, entries.at(-1)?.hash ?? "", event.metadata.message_timestamp)); reduceEnvelope(state, event, options); };
+    apply(online("s1", "2026-11-01T10:00:00Z"));
+    apply(chat("a1", "a", "alice", "!lamp", "2026-11-01T10:01:00Z"));
+    apply(envelope("promise", "lamplight.promise.made", "2026-11-01T10:02:00Z", { stream_id: "s1", user_id: "a" }));
+    apply(offline("s1", "2026-11-01T11:00:00Z"));
+    apply(online("s2", "2026-11-02T10:00:00Z"));
+    const snapshot = returnCardFrame(state, 1, Date.parse("2026-11-02T10:01:00Z"));
+    expect(snapshot.lines).toEqual(["0 are back.", "0 kept their promise."]);
+    apply(chat("a2", "a", "alice", "!lamp", "2026-11-02T10:01:05Z"));
+    expect(returnCardFrame(state, 1, Date.parse("2026-11-02T10:01:06Z"))).toEqual(snapshot);
+    expect(weightedLampCount(state)).toBe(2);
+    const receipt = createReceipt(state, entries, "2026-11-02T11:00:00Z", "eventsub", "2026-11-02T11:00:01Z", false, true, true);
+    expect(receipt.promises?.kept).toBe(1);
+    expect(receipt.promises?.keptNames).toEqual(["Alice"]);
+    expect(rebuildState(entries, options).promiseKeptUserIds).toEqual(["a"]);
+  });
   it("records !back once per lit viewer per stream and does nothing while disabled", () => {
     const state = emptyState(); reduceEnvelope(state, online("s1", "2026-11-01T10:00:00Z"), options);
     expect(appendPromise(state, chat("early", "a", "alice", "!back", "2026-11-01T10:00:05Z"))).toBeNull();
@@ -42,7 +60,7 @@ describe("return promises", () => {
     reduceEnvelope(state, chat("a2", "a", "alice", "✨", "2026-11-02T10:00:01Z"), options);
     expect(state.promiseKeptUserIds).toEqual(["a"]); expect(state.lamps.a?.lifetimePromisesKept).toBe(1); expect(weightedLampCount(state)).toBe(2);
     reduceEnvelope(state, chat("b2", "b", "bao", "!lamp", "2026-11-02T10:00:02Z"), options); expect(weightedLampCount(state)).toBe(3);
-    const card = openingCardFrame(state.openingCard, state.currentStream, state.promiseKeptUserIds, [], Date.parse("2026-11-02T10:00:03Z"));
+    const card = returnCardFrame(state, 1, Date.parse("2026-11-02T10:01:00Z"));
     expect(card.lines[1]).toBe("1 kept their promise.");
   });
 

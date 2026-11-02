@@ -38,6 +38,7 @@ export interface LampState {
 }
 
 export interface StreamState {
+  returnCardDelayMinutes?: number;
   thresholdN?: number;
   thresholdMode?: "auto" | "manual";
   id: string;

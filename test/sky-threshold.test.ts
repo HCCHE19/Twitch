@@ -18,7 +18,8 @@ it("locks the threshold for the stream and preserves it on ledger rebuild", () =
   const state=emptyState(), entries: LedgerEntry[]=[], options={broadcasterLogin:"host"};
   const apply=(event:EventSubEnvelope)=>{ entries.push(makeLedgerEntry(event,entries.at(-1)?.hash??""));reduceEnvelope(state,event,options); };
   const online:EventSubEnvelope={metadata:{message_id:"online",message_type:"notification",subscription_type:"stream.online",message_timestamp:"2026-11-02T00:00:00Z"},payload:{event:{id:"s1"}}};
-  apply(online);apply(thresholdEnvelope(state,3,online.metadata.message_timestamp)!);
+  apply(online);apply(thresholdEnvelope(state,3,online.metadata.message_timestamp,1)!);
+  expect(state.currentStream?.returnCardDelayMinutes).toBe(1);
   expect(state.currentStream?.thresholdN).toBe(3);
   expect(thresholdEnvelope(state,"auto",online.metadata.message_timestamp)).toBeNull();
   expect(thresholdEnvelope(state,20,online.metadata.message_timestamp)).toBeNull();

@@ -120,6 +120,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
   if (type === "lamplight.sky.threshold") {
     if (state.currentStream && state.currentStream.id === event.stream_id && state.currentStream.thresholdMode === undefined && Number.isInteger(event.threshold) && Number(event.threshold) > 0) {
       state.currentStream.thresholdN = Number(event.threshold);
+      state.currentStream.returnCardDelayMinutes = Number(event.return_card_delay_minutes) >= 1 ? Number(event.return_card_delay_minutes) : 10;
       state.currentStream.thresholdMode = event.mode === "auto" ? "auto" : "manual";
     }
     return state;

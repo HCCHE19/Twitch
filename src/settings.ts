@@ -12,6 +12,7 @@ export interface RuntimeSettings {
   moments: MomentLevel;
   thresholdN: number | "auto";
   layout: OverlayLayout;
+  returnCardDelayMinutes?: number;
 }
 
 export interface SettingsManager {
@@ -21,7 +22,7 @@ export interface SettingsManager {
 
 export async function loadDefaultRuntimeSettings(): Promise<RuntimeSettings> {
   const [layout, thresholdN, showNames, threads, sky, wind, promises, moments] = await Promise.all([loadOverlayLayout(), loadThresholdN(), loadShowNames(), loadThreadsEnabled(), loadSkyEnabled(), loadWindEnabled(), loadPromisesEnabled(), loadMomentLevel()]);
-  return { layout, thresholdN, showNames, threads, sky, wind, promises, moments };
+  return { layout, thresholdN, showNames, threads, sky, wind, promises, moments, returnCardDelayMinutes: 10 };
 }
 
 export function validateSettings(value: unknown, fallback: RuntimeSettings): RuntimeSettings {
@@ -30,11 +31,12 @@ export function validateSettings(value: unknown, fallback: RuntimeSettings): Run
   const moments = input.moments === "quiet" || input.moments === "normal" || input.moments === "big" ? input.moments : fallback.moments;
   const layout = input.layout === "top" || input.layout === "bottom" ? input.layout : fallback.layout;
   const thresholdN = input.thresholdN === "auto" ? "auto" : typeof input.thresholdN === "number" && Number.isInteger(input.thresholdN) && input.thresholdN > 0 ? input.thresholdN : fallback.thresholdN;
-  return { sky: boolean("sky"), threads: boolean("threads"), wind: boolean("wind"), promises: boolean("promises"), showNames: boolean("showNames"), moments, thresholdN, layout };
+  const returnCardDelayMinutes = typeof input.returnCardDelayMinutes === "number" && Number.isFinite(input.returnCardDelayMinutes) && input.returnCardDelayMinutes >= 1 ? input.returnCardDelayMinutes : fallback.returnCardDelayMinutes ?? 10;
+  return { sky: boolean("sky"), threads: boolean("threads"), wind: boolean("wind"), promises: boolean("promises"), showNames: boolean("showNames"), moments, thresholdN, layout, returnCardDelayMinutes };
 }
 
 export async function createSettingsManager(defaults: RuntimeSettings, path = "data/settings.json"): Promise<SettingsManager> {
-  let current = defaults;
+  let current = validateSettings({}, defaults);
   try { current = validateSettings(JSON.parse(await readFile(path, "utf8")), defaults); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   const save = async (): Promise<void> => {

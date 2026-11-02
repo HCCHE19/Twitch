@@ -31,7 +31,7 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
   const sockets = new WebSocketServer({ noServer: true });
   const controlToken = randomBytes(24).toString("hex");
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
-  const runtime = () => settingsManager?.get() ?? { layout, thresholdN, showNames, threads: threadsEnabled, sky: skyEnabled, wind: windEnabled, promises: promisesEnabled, moments };
+  const runtime = () => settingsManager?.get() ?? { layout, thresholdN, showNames, threads: threadsEnabled, sky: skyEnabled, wind: windEnabled, promises: promisesEnabled, moments, returnCardDelayMinutes: getState().currentStream?.returnCardDelayMinutes ?? 10 };
   const packet = (state: DerivedState): string => { const settings = runtime(); return JSON.stringify({ type: "state", state, layout: settings.layout, thresholdN: state.currentStream?.thresholdN ?? resolveThreshold(state, settings.thresholdN), autoThresholdN: resolveThreshold(state, "auto"), showNames: settings.showNames, threadsEnabled: settings.threads, skyEnabled: settings.sky, windEnabled: settings.wind, promisesEnabled: settings.promises, moments: settings.moments, settings, preferences }); };
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {

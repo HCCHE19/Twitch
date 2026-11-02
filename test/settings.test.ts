@@ -4,11 +4,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createSettingsManager, validateSettings, type RuntimeSettings } from "../src/settings.js";
 
-const defaults: RuntimeSettings = { sky: false, threads: false, wind: false, promises: true, showNames: true, moments: "normal", thresholdN: 10, layout: "bottom" };
+const defaults: RuntimeSettings = { sky: false, threads: false, wind: false, promises: true, showNames: true, moments: "normal", thresholdN: 10, layout: "bottom", returnCardDelayMinutes: 10 };
 
 describe("live settings", () => {
   it("validates settings and preserves safe defaults for invalid fields", () => {
     expect(validateSettings({ sky: true, thresholdN: 0, moments: "loud", layout: "middle" }, defaults)).toEqual({ ...defaults, sky: true });
+    expect(validateSettings({ returnCardDelayMinutes: 0 }, defaults).returnCardDelayMinutes).toBe(10);
+    expect(validateSettings({ returnCardDelayMinutes: 1 }, defaults).returnCardDelayMinutes).toBe(1);
   });
 
   it("persists updates locally and reloads them over env defaults", async () => {

@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     entries.push(recoveryEntry);
   }
   const lockThreshold = async (timestamp: string): Promise<void> => {
-    const envelope = thresholdEnvelope(state, settings.get().thresholdN, timestamp);
+    const envelope = thresholdEnvelope(state, settings.get().thresholdN, timestamp, settings.get().returnCardDelayMinutes ?? 10);
     if (!envelope) return;
     const entry = await appendEnvelope("data/events.jsonl", envelope, state.lastHash);
     reduceEnvelope(state, envelope, { broadcasterLogin: config.channelLogin, ignoredUsers });

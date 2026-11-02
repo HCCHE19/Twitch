@@ -14,6 +14,7 @@
     <label><span><strong>Moments</strong><small>Animation intensity</small></span><select id="moments"><option value="quiet">Quiet</option><option value="normal">Normal</option><option value="big">Big</option></select></label>
     <label><span><strong>Fragment threshold</strong><small>Auto or a manual number; changes apply next stream</small></span><input id="threshold" type="text" list="threshold-options" value="auto" aria-label="Fragment threshold: auto or a positive integer"><datalist id="threshold-options"><option value="auto"></datalist></label>
     <p id="threshold-current" class="note"></p>
+    <label><span><strong>Return card delay (minutes)</strong><small>Default 10. First fragment can trigger it sooner. Changes apply next stream.</small></span><input id="return-card-delay" type="number" min="1" step="1" value="10"></label>
     <label><span><strong>Layout</strong><small>Place the single lamp band at the top or bottom</small></span><select id="layout"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
     <p id="settings-note" class="settings-note" role="status"></p><button id="save-settings" type="button" disabled>Save settings</button>
   </section>

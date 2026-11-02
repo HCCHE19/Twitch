@@ -3,7 +3,7 @@ import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/la
 import { rowLayout, selectVisibleLamps } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
-import { openingCardFrame, returnGreeting } from "/shared/memory.js";
+import { openingCardFrame, returnCardFrame, returnGreeting } from "/shared/memory.js";
 import { rollCallFrame } from "/shared/roll-call.js";
 import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
@@ -100,7 +100,9 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closingThreadCount = threadsEnabled ? (state?.threads ?? []).filter(thread => thread.userIds.every(id => state?.closingMoment?.litUserIds.includes(id))).length : 0;
   const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches, closingThreadCount);
-  const opening = openingCardFrame(state?.openingCard, state?.currentStream, promisesEnabled ? state?.promiseKeptUserIds : [], threadsEnabled ? state?.threads : [], renderNow);
+  const initialCard = openingCardFrame(state?.openingCard, state?.currentStream, [], [], renderNow);
+  const returnCard = returnCardFrame(state, 10, renderNow, promisesEnabled);
+  const opening = initialCard.active ? initialCard : returnCard.active ? returnCard : initialCard;
 
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
@@ -325,3 +327,5 @@ function connect() {
 addEventListener("resize", () => { resize(); drawOnce(); });
 reducedMotion.addEventListener("change", drawOnce);
 resize(); connect(); render(0);
+// Time-based cards must also appear and expire without new events/reduced motion.
+setInterval(() => { if (reducedMotion.matches) drawOnce(); }, 250);

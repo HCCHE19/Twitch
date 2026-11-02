@@ -368,3 +368,9 @@
 
 - Decision: at 1920×1080 the normal corner panel is 520×200, stays top-right, uses 16px caption and progress text, and has a clearly visible dark backing that survives bright game content. The current fragment is full-bright warm white with a soft glow; missing regions remain faint dotted guides. Panel constellation stars are at least 4px across and bright stars are 6px across.
 - Implementation: panel-specific glyph styling avoids enlarging receipt artwork. Collected strokes are 2.5px, missing guides retain their dashed distinction, the arc indicators are enlarged, and the completion travel target now lands in the resized panel. Opening-card enlargement remains proportional.
+
+## 2026-11-03 — Split opening and return cards
+
+- Decision: stream.online shows only the previous stream's lamp count. A second ten-second card shows returning and kept-promise counts at the earlier of the first fragment or a configurable delay (default 10 minutes). It does not repeat. No previous stream means neither card appears.
+- Implementation: counts are reconstructed from attendance and promise timestamps at the cutoff, so reconnecting browsers see the same frozen numbers. Delay is recorded alongside the stream's threshold in the ledger and rebuilt with it; control changes apply next stream. If a fragment is earned during the initial card, the second card waits for its end but retains counts from the earning timestamp. Reduced-motion overlays also check the timer without requiring chat activity.
+- Test setup: the night demo and this machine's private settings use one minute. No .env or auth file was accessed. Late arrivals remain fully counted in promise totals, weighted sky progress, and receipts; tests cover that path, timer/fragment precedence, no repeats, refresh, and ledger rebuild.
