@@ -27,7 +27,7 @@ Open `http://localhost:8787/control/` to find private receipts at the top (newes
 - **Flares and wind:** an already-lit viewer's single Twitch emote gives a cooldown-limited flare. Neighbours ripple; two nearby flares can spark; five different flares can trigger wind when enabled.
 - **Sky:** reaching the threshold earns one deterministic, non-duplicate fragment from twelve code-drawn zodiac constellations. The corner panel and local receipt derive progress from the ledger.
 - **Moments:** arrival and fragment effects stay inside the lamp band and corner panel. `quiet`, `normal`, and `big` change intensity; reduced-motion preferences remove travel and bounce.
-- **Threads:** a lit viewer can use `!tie name`, `!tie @name`, or bare `!tie` for the lamp immediately left. Mutual ties persist; `!untie` removes them; streaks count consecutive streams together. The bot never replies in chat.
+- **Threads:** a lit viewer can use `!tie name`, `!tie @name`, or bare `!tie` for the lamp immediately left. The solid thread appears immediately and persists; either side can use `!untie` to remove it; streaks count consecutive streams together. The bot never replies in chat.
 
 The fragment threshold defaults to `auto`: `max(3, round(median attendance of the last five completed streams / 2.5))`, or 10 with no history. The control page shows the computed number; type a positive integer for a manual threshold. The value locks for the whole stream and survives restart; changes apply next stream. The night demo uses manual 3. The corner panel counts lamps as they land (kept promises add two), softly pulses a full bar when a fragment is earned, then resets. Progress hides when this stream completes a constellation. Awards remain limited to one fragment per stream.
 
@@ -62,7 +62,7 @@ npm run demo -- --moment night --port 8790
 
 For a slower walkthrough, use `npm run demo -- --moment night --minutes 8 --port 8790`. `--minutes` stretches every event interval evenly; the default night timeline is four minutes, plus the startup countdown and closing animation. Choose either `--minutes` or `--speed`. The Terminal prints named arrivals, ties, promises, flares, fragment counts, completion, and the closing hint as they happen. Longer timelines also stretch gaps between flares, so a sufficiently slow replay may not trigger the ten-second wind window.
 
-Opening cards use at most two short lines, with one soft sky-panel pulse instead of extra explanation. Closing cards use attendance, promise totals, and an optional thread count. Thread lines are warm red with a soft glow; pending ties are dashed, and streaks sit on small dark pills.
+Opening cards use at most two short lines, with one soft sky-panel pulse instead of extra explanation. Closing cards use attendance, promise totals, and an optional thread count. Thread lines are warm red with a soft glow, and streaks sit on small dark pills.
 
 When events overlap, ignite always plays immediately. Fragment and constellation moments play in order—fragment first, completion second—and none are dropped; the corner panel advances only with its own moment. Flares and closing continue underneath without interrupting that queue.
 
@@ -93,7 +93,7 @@ These sources motivate the problem; no study yet shows that lightweight presence
 
 ## Privacy and boundaries
 
-No chat text is stored, only who lit a lamp and when; receipts never leave the streamer's machine, and nothing about viewers is published. Derived promise, flare, and mutual-thread events contain only the identities and times needed to rebuild those features. Real `data/`, `receipts/`, and `.env` are gitignored; private receipt JSON may contain Twitch user IDs because verification needs stable identity. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
+No chat text is stored, only who lit a lamp and when; receipts never leave the streamer's machine, and nothing about viewers is published. Derived promise, flare, and thread events contain only the identities and times needed to rebuild those features. Real `data/`, `receipts/`, and `.env` are gitignored; private receipt JSON may contain Twitch user IDs because verification needs stable identity. There is no runtime AI, chat output, ranking, scoring, clipping, stream summary, Twitch Extension, external artwork, audio, or game footage.
 
 ## Credits and licences
 

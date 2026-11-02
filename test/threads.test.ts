@@ -4,7 +4,7 @@ import { emptyState, reduceEnvelope } from "../src/presence.js";
 import { applyThreadCommand, applyThreadCommandDetailed, applyThreadReunion } from "../src/threads.js";
 import type { DerivedState, EventSubEnvelope } from "../src/types.js";
 // @ts-expect-error The overlay helper is intentionally plain browser JavaScript.
-import { displayedThreadStreak, placeThreadArrival, preferThreadAdjacency, threadVisuals } from "../public/shared/threads.js";
+import { displayedThreadStreak, placeThreadArrival, preferThreadAdjacency, threadLineWidth, threadVisuals } from "../public/shared/threads.js";
 
 const options = { broadcasterLogin: "host", ignoredUsers: ["nightbot"] };
 const envelope = (id: string, type: string, event: Record<string, unknown>, second = Number(id.replace(/\D/gu, "")) || 0): EventSubEnvelope => ({
@@ -17,6 +17,9 @@ const setup = (...people: Array<[string, string]>): DerivedState => {
   people.forEach(([id, name], index) => light(state, String(index + 1), id, name)); return state;
 };
 const applyEvents = (state: DerivedState, events: EventSubEnvelope[]): void => events.forEach((event) => reduceEnvelope(state, event, options));
+const tieOnce = (state: DerivedState, actorId: string, actorName: string, target: string, id = "tie"): EventSubEnvelope[] => {
+  const events = applyThreadCommand(state, chat(id, actorId, actorName, `!tie ${target}`), { ...options, enabled: true }); applyEvents(state, events); return events;
+};
 
 describe("red threads", () => {
   it("does absolutely nothing when disabled", () => {
@@ -25,16 +28,14 @@ describe("red threads", () => {
     expect(state).toEqual(before);
   });
 
-  it("requires mutual ties, expires unreturned pending ties, and allows one outgoing per stream", () => {
+  it("creates a solid thread in one step and allows one outgoing tie per sender", () => {
     const state = setup(["a", "Alice"], ["b", "Bob"], ["c", "Chika"]);
-    expect(applyThreadCommand(state, chat("4", "a", "Alice", "!tie Bob"), { ...options, enabled: true })).toEqual([]);
-    expect(state.pendingThreads).toHaveLength(1);
-    expect(applyThreadCommand(state, chat("5", "a", "Alice", "!tie Chika"), { ...options, enabled: true })).toEqual([]);
-    const tied = applyThreadCommand(state, chat("6", "b", "Bob", "!tie Alice"), { ...options, enabled: true });
-    expect(tied[0]?.metadata.subscription_type).toBe("lamplight.thread.tied"); applyEvents(state, tied);
+    const tied = tieOnce(state, "a", "Alice", "Bob", "4");
+    expect(tied[0]?.metadata.subscription_type).toBe("lamplight.thread.tied");
     expect(state.threads).toHaveLength(1); expect(state.pendingThreads).toHaveLength(0);
-    const pending = setup(["x", "Xena"], ["y", "Yuki"]); applyThreadCommand(pending, chat("3", "x", "Xena", "!tie Yuki"), { ...options, enabled: true });
-    reduceEnvelope(pending, envelope("off", "stream.offline", {}, 8), options); expect(pending.pendingThreads).toEqual([]);
+    expect(applyThreadCommand(state, chat("5", "a", "Alice", "!tie Chika"), { ...options, enabled: true })).toEqual([]);
+    expect(tieOnce(state, "b", "Bob", "Chika", "6")).toHaveLength(1);
+    expect(state.threads).toHaveLength(2); expect(state.threadOutgoingUserIds).toEqual(expect.arrayContaining(["a", "b"]));
   });
 
   it("rejects self, dim, absent, broadcaster and ambiguous-prefix targets", () => {
@@ -47,16 +48,16 @@ describe("red threads", () => {
 
   it("supports exact then unique-prefix matching", () => {
     const state = setup(["a", "Alice"], ["b", "Bao"], ["c", "Chika"]);
-    applyThreadCommand(state, chat("4", "a", "Alice", "!tie Ch"), { ...options, enabled: true });
-    expect(state.pendingThreads[0]).toMatchObject({ fromUserId: "a", toUserId: "c" });
+    const events=applyThreadCommand(state, chat("4", "a", "Alice", "!tie Ch"), { ...options, enabled: true });
+    expect(events[0]?.payload.event).toMatchObject({user_id_a:"a",user_id_b:"c",initiator_user_id:"a"});
   });
 
   it("accepts @name and Twitch mention fragments", () => {
     const state = setup(["a", "Alice"], ["b", "Bao"]);
     const source = chat("4", "a", "Alice", "!tie @Bao");
     (source.payload.event!.message as { fragments: unknown[] }).fragments = [{ type: "text", text: "!tie " }, { type: "mention", text: "@Bao", mention: { user_id: "b", user_name: "Bao" } }];
-    applyThreadCommand(state, source, { ...options, enabled: true });
-    expect(state.pendingThreads[0]).toMatchObject({ fromUserId: "a", toUserId: "b" });
+    const events=applyThreadCommand(state, source, { ...options, enabled: true });
+    expect(events[0]?.payload.event).toMatchObject({user_id_a:"a",user_id_b:"b",initiator_user_id:"a"});
   });
 
   it("handles Twitch-shaped named, mention, and bare commands end to end with an explicit outcome", () => {
@@ -66,10 +67,10 @@ describe("red threads", () => {
       { type: "text", text: "!tie ", cheermote: null, emote: null, mention: null },
       { type: "mention", text: "@Bao", cheermote: null, emote: null, mention: { user_id: "b", user_name: "Bao", user_login: "bao" } }
     ];
-    expect(applyThreadCommandDetailed(state, mention, { ...options, enabled: true })).toMatchObject({ command: "!tie", applied: true, reason: "pending tie shown", targetUserId: "b" });
-    const reciprocal = applyThreadCommandDetailed(state, chat("real-name", "b", "Bao", "!tie Chika"), { ...options, enabled: true });
-    expect(reciprocal).toMatchObject({ applied: true, reason: "mutual thread tied", targetUserId: "c" });
-    applyEvents(state, reciprocal!.events);
+    const mentionResult=applyThreadCommandDetailed(state, mention, { ...options, enabled: true });
+    expect(mentionResult).toMatchObject({ command: "!tie", applied: true, reason: "solid thread tied", targetUserId: "b" });applyEvents(state,mentionResult!.events);
+    const namedState=setup(["a","Alice"],["b","Bao"],["c","Chika"]),named=applyThreadCommandDetailed(namedState,chat("real-name","b","Bao","!tie Chika"),{...options,enabled:true});
+    expect(named).toMatchObject({applied:true,reason:"solid thread tied",targetUserId:"c"});
     const bare = applyThreadCommandDetailed(state, chat("real-bare", "a", "Alice", "!tie"), { ...options, enabled: true });
     expect(bare).toMatchObject({ applied: false, reason: "there is no lamp immediately left of the sender" });
   });
@@ -82,18 +83,16 @@ describe("red threads", () => {
   it("uses the immediately previous arrival for bare tie and untie, and does nothing without one", () => {
     const state = setup(["a", "Alice"], ["b", "Bob"], ["c", "Chika"]);
     expect(applyThreadCommand(state, chat("4", "a", "Alice", "!tie"), { ...options, enabled: true })).toEqual([]); expect(state.pendingThreads).toEqual([]);
-    applyThreadCommand(state, chat("5", "c", "Chika", "!tie"), { ...options, enabled: true }); expect(state.pendingThreads[0]).toMatchObject({ fromUserId: "c", toUserId: "b" });
-    const tied = applyThreadCommand(state, chat("6", "b", "Bob", "!tie Chika"), { ...options, enabled: true }); applyEvents(state, tied);
+    const tied=applyThreadCommand(state, chat("5", "c", "Chika", "!tie"), { ...options, enabled: true });applyEvents(state,tied);expect(state.threads[0]?.userIds).toEqual(["b","c"]);
     const untied = applyThreadCommand(state, chat("7", "c", "Chika", "!untie"), { ...options, enabled: true }); expect(untied).toHaveLength(1);
   });
 
   it("allows targeted untie from either side and explicit moderator untie", () => {
     for (const actor of [["a", "Alice", "Bob"], ["b", "Bob", "Alice"]] as const) {
-      const state = setup(["a", "Alice"], ["b", "Bob"]); const tie = applyThreadCommand(state, chat("3", "a", "Alice", "!tie Bob"), { ...options, enabled: true }); expect(tie).toEqual([]);
-      applyEvents(state, applyThreadCommand(state, chat("4", "b", "Bob", "!tie Alice"), { ...options, enabled: true }));
+      const state = setup(["a", "Alice"], ["b", "Bob"]); expect(tieOnce(state,"a","Alice","Bob","3")).toHaveLength(1);
       const untie = applyThreadCommand(state, chat("5", actor[0], actor[1], `!untie ${actor[2]}`), { ...options, enabled: true }); expect(untie[0]?.metadata.subscription_type).toBe("lamplight.thread.untied"); applyEvents(state, untie); expect(state.threads).toEqual([]);
     }
-    const state = setup(["a", "Alice"], ["b", "Bob"]); applyThreadCommand(state, chat("3", "a", "Alice", "!tie Bob"), { ...options, enabled: true }); applyEvents(state, applyThreadCommand(state, chat("4", "b", "Bob", "!tie Alice"), { ...options, enabled: true }));
+    const state = setup(["a", "Alice"], ["b", "Bob"]); tieOnce(state,"a","Alice","Bob","3");
     const mod = applyThreadCommand(state, chat("6", "mod", "Moderator", "!untie Alice | Bob", [{ set_id: "moderator" }]), { ...options, enabled: true }); expect(mod).toHaveLength(1); applyEvents(state, mod); expect(state.threads).toEqual([]);
   });
 
@@ -109,11 +108,14 @@ describe("red threads", () => {
     const state = setup(["a", "Alice"]); state.lamps.b = { ...state.lamps.a!, userId: "b", displayName: "Bob", login: "bob" }; state.threads = [{ userIds: ["a", "b"], createdAt: "2026-11-01T00:00:00Z", createdStreamId: "old" }];
     const items = [{ lamp: state.lamps.a, x: 10, y: 10, size: 100 }, { lamp: state.lamps.b, x: 20, y: 10, size: 100 }];
     expect(threadVisuals(items, state).waiting).toHaveLength(1);
-    state.pendingThreads = [{ fromUserId: "a", toUserId: "b", createdAt: "2026-11-02T05:00:00Z" }];
-    state.currentStream!.litUserIds.push("b"); expect(threadVisuals(items, state).pending).toHaveLength(1); state.currentStream!.litUserIds.pop(); state.pendingThreads = [];
     state.currentStream!.litUserIds.push("b"); expect(applyThreadReunion(state, "b", "2026-11-02T05:00:10Z")).toEqual(expect.arrayContaining(["a", "b"])); expect(state.threadReunionAtByUserId).toMatchObject({ a: "2026-11-02T05:00:10Z", b: "2026-11-02T05:00:10Z" }); expect(state.flareAtByUserId).toEqual({});
     expect(threadVisuals(items, state).solid).toHaveLength(1);
     const row = preferThreadAdjacency([{ lamp: { userId: "a" } }, { lamp: { userId: "x" } }, { lamp: { userId: "b" } }], state.threads, ["a", "b"]); expect(row.map((item) => item.lamp.userId)).toEqual(["a", "b", "x"]);
+  });
+
+  it("draws solid threads at full, medium, and dense tiers",()=>{
+    const state=setup(["a","Alice"],["b","Bob"]);tieOnce(state,"a","Alice","Bob","3");
+    for(const tier of [0,1,2]){const items=[{lamp:state.lamps.a,x:100,y:900,size:100,tier},{lamp:state.lamps.b,x:220,y:900,size:100,tier}],line=threadVisuals(items,state).solid[0];expect(line).toBeDefined();expect(threadLineWidth(line)).toBe(tier===0?2:1.5)}
   });
 
   it("counts consecutive together streams, resets on a miss, and restarts at one", () => {

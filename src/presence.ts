@@ -188,7 +188,11 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     if (userIds.some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return state;
     state.threads.push({ userIds, createdAt: envelope.metadata.message_timestamp, createdStreamId: streamId, streamsTogether: 0, currentStreak: 0, bestStreak: 0, lastCountedStreamId: null });
     state.pendingThreads = state.pendingThreads.filter((pending) => !(userIds.includes(pending.fromUserId) && userIds.includes(pending.toUserId)));
-    if (state.currentStream?.id === streamId) for (const userId of userIds) if (!state.threadOutgoingUserIds.includes(userId)) state.threadOutgoingUserIds.push(userId);
+    if (state.currentStream?.id === streamId) {
+      const initiator = String(event.initiator_user_id ?? "");
+      const outgoingIds = initiator && userIds.includes(initiator) ? [initiator] : userIds;
+      for (const userId of outgoingIds) if (!state.threadOutgoingUserIds.includes(userId)) state.threadOutgoingUserIds.push(userId);
+    }
     return state;
   }
   if (type === "lamplight.thread.untied") {

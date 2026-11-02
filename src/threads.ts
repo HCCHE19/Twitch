@@ -87,14 +87,8 @@ export function applyThreadCommandDetailed(state: DerivedState, envelope: EventS
     if (!targetId) return ignoredResult(tieMatch[1]?.trim() ? "target is not one unique lit lamp" : "there is no lamp immediately left of the sender");
     if (targetId === actorId) return ignoredResult("a viewer cannot tie to themselves", targetId);
     if (state.threads.some((thread) => pairMatches(thread, actorId, targetId))) return ignoredResult("those lamps are already threaded", targetId);
-    const reciprocal = state.pendingThreads.find((pending) => pending.fromUserId === targetId && pending.toUserId === actorId);
-    if (reciprocal) {
-      if ([actorId, targetId].some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return ignoredResult("one lamp already has three threads", targetId);
-      return { command, applied: true, reason: "mutual thread tied", targetUserId: targetId, events: [internalEnvelope("tied", envelope, state.currentStream.id, actorId, targetId)] };
-    }
-    state.pendingThreads.push({ fromUserId: actorId, toUserId: targetId, createdAt: envelope.metadata.message_timestamp });
-    state.threadOutgoingUserIds.push(actorId);
-    return { command, applied: true, reason: "pending tie shown", targetUserId: targetId, events: [] };
+    if ([actorId, targetId].some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return ignoredResult("one lamp already has three threads", targetId);
+    return { command, applied: true, reason: "solid thread tied", targetUserId: targetId, events: [internalEnvelope("tied", envelope, state.currentStream.id, actorId, targetId, { initiator_user_id: actorId })] };
   }
 
   let pair: [string, string] | null = null;

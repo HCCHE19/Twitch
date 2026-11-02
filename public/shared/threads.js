@@ -5,7 +5,7 @@ export function drawThreadLines(ctx, lines) {
     const y2 = line.to ? line.to.y - line.to.size * .35 : line.from.y + line.from.size * .08;
     const lift = line.arc ? Math.min(72, Math.abs(x2 - x1) * .18) : 0;
     ctx.save(); ctx.globalAlpha = kind === "solid" ? 1 : .6;
-    ctx.lineWidth = Math.max(line.from.tier ?? 0, line.to?.tier ?? 0) > 0 ? 1.5 : 2;
+    ctx.lineWidth = threadLineWidth(line);
     ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.strokeStyle = "rgba(219,107,91,.72)"; ctx.shadowColor = "rgba(219,107,91,.38)"; ctx.shadowBlur = 4;
     if (kind !== "solid") ctx.setLineDash([5, 7]);
@@ -25,6 +25,10 @@ export function drawThreadLines(ctx, lines) {
     }
     ctx.restore();
   }
+}
+
+export function threadLineWidth(line) {
+  return Math.max(line.from?.tier ?? 0,line.to?.tier ?? 0)>0?1.5:2;
 }
 
 export function preferThreadAdjacency(items, threads, litUserIds) {
