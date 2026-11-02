@@ -47,6 +47,7 @@ Open `http://localhost:8787/control/` privately to compact or hide the band.
 The same private page can start a roll call and mark the highlighted lamp called; it cycles through uncalled lamps in first-lit order and turns off when complete.
 Set `THRESHOLD_N` in `.env` (default `10`) to choose when the once-per-stream left-to-right lamp wave runs.
 Set `SHOW_NAMES=false` to hide every name plate and return greeting on the overlay; receipt names are unaffected.
+Name plates support Japanese and Chinese display names through system-font fallbacks and bounded text fitting.
 
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 

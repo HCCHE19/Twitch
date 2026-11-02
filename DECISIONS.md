@@ -123,3 +123,9 @@
 **Decided:** `SHOW_NAMES=false` is a global overlay privacy switch: it hides ordinary plates, roll-call plates, and return greetings, while receipts retain names. Default is `true`; any value other than literal true/false fails configuration rather than guessing.
 
 **Action:** Added validated configuration, server delivery, overlay enforcement, documentation, and parsing tests.
+
+## 2026-11-02 — CJK-safe name plates
+
+**Decided:** Preserve the locked plate geometry by fitting long labels inside a bounded width, reducing only font size to a 9px floor. After Space Grotesk, explicitly prefer macOS Japanese/Chinese system fonts (`Hiragino Sans`, `PingFang SC`) before general system fallbacks.
+
+**Action:** Added shared plate-fitting metrics, explicit CJK fallbacks, overlay integration, and Japanese/Chinese tests asserting text remains within the plate bounds.

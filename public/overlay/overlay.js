@@ -5,6 +5,7 @@ import { flarePulse } from "/shared/flare.js";
 import { openingCardFrame, returnGreeting } from "/shared/memory.js";
 import { rollCallFrame } from "/shared/roll-call.js";
 import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
+import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -88,11 +89,14 @@ function render(time) {
           detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25), glowAlpha
         });
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
-        const labelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
-        context.font = `600 ${labelSize}px "Space Grotesk", system-ui, sans-serif`;
+        const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
+        context.font = `600 ${baseLabelSize}px ${LABEL_FONT_FALLBACK}`;
+        const fitted = fitNamePlate(context.measureText(item.lamp.displayName).width, baseLabelSize, Math.max(72, item.size * .82));
+        const labelSize = fitted.fontSize;
+        context.font = `600 ${labelSize}px ${LABEL_FONT_FALLBACK}`;
         context.textAlign = "center";
         const labelY = item.y + item.size * .27;
-        const labelWidth = context.measureText(item.lamp.displayName).width + labelSize * 1.5;
+        const labelWidth = fitted.plateWidth;
         context.fillStyle = `rgba(4, 9, 12, ${Math.max(.58, opacity * .74)})`;
         context.beginPath(); context.roundRect(item.x - labelWidth / 2, labelY - labelSize * .88, labelWidth, labelSize * 1.45, labelSize * .7); context.fill();
         context.strokeStyle = `rgba(237, 201, 133, ${Math.max(.16, opacity * .3)})`; context.lineWidth = 1; context.stroke();
@@ -101,7 +105,7 @@ function render(time) {
         const greeting = returnGreeting(item.lamp, state.currentStream, Date.now());
         if (greeting) {
           context.fillStyle = "rgba(246,232,207,.72)";
-          context.font = `500 ${Math.max(11, labelSize * .72)}px "Space Grotesk", system-ui, sans-serif`;
+          context.font = `500 ${Math.max(11, labelSize * .72)}px ${LABEL_FONT_FALLBACK}`;
           context.fillText(greeting, item.x, labelY + labelSize * 1.35);
         }
       } else {
