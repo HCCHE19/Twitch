@@ -31,3 +31,8 @@ export function animateRowLayout(tracker,targetItems,now=Date.now(),duration=300
 }
 
 export function arrivalStartTime(now,gapOpened,duration=300){return now+(gapOpened?duration:0)}
+
+export function releaseArrivalBatch(queued, startedAt, now = Date.now(), windowMs = 1_500) {
+  if (startedAt === null || now - startedAt < windowMs) return [];
+  return [...queued].sort((left, right) => left[1].litAt.localeCompare(right[1].litAt));
+}

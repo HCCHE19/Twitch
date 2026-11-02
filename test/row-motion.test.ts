@@ -1,6 +1,6 @@
 import { describe,expect,it } from "vitest";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { animateRowLayout,arrivalStartTime,reconcileLampOrder } from "../public/shared/row-motion.js";
+import { animateRowLayout,arrivalStartTime,reconcileLampOrder,releaseArrivalBatch } from "../public/shared/row-motion.js";
 // @ts-expect-error Browser module intentionally has no declaration file.
 import { igniteFrame } from "../public/shared/moments.js";
 import { generateLamp } from "../src/lamp-generator.js";
@@ -34,5 +34,11 @@ describe("stable row motion",()=>{
     const before=[{lamp:{userId:"a"},x:80,y:950,size:176}],after=[{lamp:{userId:"a"},x:80,y:950,size:123.2}];
     let motion=animateRowLayout(new Map(),before,0);motion=animateRowLayout(motion.tracker,after,10);
     expect(motion.items[0].size).toBe(176);motion=animateRowLayout(motion.tracker,after,160);expect(motion.items[0].size).toBeGreaterThan(123.2);expect(motion.items[0].size).toBeLessThan(176);motion=animateRowLayout(motion.tracker,after,310);expect(motion.items[0].size).toBeCloseTo(123.2);
+  });
+
+  it("releases arrivals inside 1.5 seconds as one stable ordered batch",()=>{
+    const queued=new Map([["b",{litAt:"2026-11-02T00:00:02Z"}],["a",{litAt:"2026-11-02T00:00:01Z"}],["c",{litAt:"2026-11-02T00:00:03Z"}]]);
+    expect(releaseArrivalBatch(queued,1_000,2_499)).toEqual([]);
+    expect(releaseArrivalBatch(queued,1_000,2_500).map(([id]:[string,unknown])=>id)).toEqual(["a","b","c"]);
   });
 });

@@ -89,9 +89,10 @@ describe("presence receipts", () => {
     const state = rebuildState(entries.slice(0, -1), { broadcasterLogin: "owner" });
     const receipt = createReceipt(state, entries, events.at(-1)!.metadata.message_timestamp, "eventsub", "2026-11-01T10:05:01Z", true);
     expect(receipt.threadsTonight).toEqual([["Alice", "Bob"]]);
+    expect(receipt.threadDetails).toEqual([{ names: ["Alice", "Bob"], streamsTogether: 1, currentStreak: 1, bestStreak: 1 }]);
     expect(receipt.nightSummary).toEqual({ firstLitAt: "2026-11-01T10:01:00Z", lastLitAt: "2026-11-01T10:02:00Z", firstArrival: "Alice", longestStreakName: "Alice", longestStreak: 1, threadsTied: 1 });
     const html = receiptHtml(receipt);
-    for (const line of ["Threads tonight", "Lamps were lit", "First to arrive: Alice.", "Longest streak tonight: Alice (1).", "Threads tied tonight: 1."]) expect(html).toContain(line);
+    for (const line of ["Threads tonight", "Alice — Bob: 1 streams together · current 1 · best 1", "Lamps were lit", "First to arrive: Alice.", "Longest streak tonight: Alice (1).", "Threads tied tonight: 1."]) expect(html).toContain(line);
     expect(html).not.toContain("user_id_a");
     expect(() => verifyReceipt(receipt, entries)).not.toThrow();
   });

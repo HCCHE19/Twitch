@@ -58,6 +58,15 @@ export function createReceipt(state: DerivedState, entries: LedgerEntry[], ended
     const right = state.lamps[String(event?.user_id_b ?? "")]?.displayName;
     return left && right ? [[left, right] as [string, string]] : [];
   });
+  const currentLit = new Set(stream.litUserIds);
+  const threadDetails = threadsEnabled ? state.threads.filter((thread) => thread.userIds.some((userId) => currentLit.has(userId))).flatMap((thread) => {
+    const names = thread.userIds.map((userId) => state.lamps[userId]?.displayName) as [string | undefined, string | undefined];
+    if (!names[0] || !names[1]) return [];
+    const together = thread.userIds.every((userId) => currentLit.has(userId));
+    const alreadyCounted = thread.lastCountedStreamId === stream.id;
+    const currentStreak = together ? (thread.currentStreak ?? 0) + (alreadyCounted ? 0 : 1) : 0;
+    return [{ names: [names[0], names[1]] as [string, string], streamsTogether: (thread.streamsTogether ?? 0) + (together && !alreadyCounted ? 1 : 0), currentStreak, bestStreak: Math.max(thread.bestStreak ?? 0, currentStreak) }];
+  }) : [];
   const longest = [...rows].sort((left, right) => right.streak - left.streak || left.litAt.localeCompare(right.litAt))[0];
   const nightSummary = {
     firstLitAt: rows[0]?.litAt ?? null,
@@ -88,6 +97,7 @@ export function createReceipt(state: DerivedState, entries: LedgerEntry[], ended
     presence: rows,
     attendance: { samples, peakTwitchViewers, peakLitLamps, summary },
     ...(threadsEnabled ? { threadsTonight } : {}),
+    ...(threadsEnabled ? { threadDetails } : {}),
     ...(threadsEnabled || skyEnabled ? { nightSummary: { ...nightSummary, ...(skyEnabled ? { fragment: earnedFragment ? `${earnedFragment.constellation} ${earnedFragment.fragment}` : null } : {}) } } : {}),
     ...(skyEnabled && sky ? { sky } : {}),
     ...(promisesEnabled && promises ? { promises } : {}),
@@ -123,7 +133,7 @@ export function receiptHtml(receipt: PresenceReceipt): string {
   const localTime = (value: string): string => `<time class="local-time" datetime="${escapeHtml(value)}" title="${escapeHtml(value)}">${escapeHtml(value)}</time>`;
   const cards = publicRows.map((row, index) => `<article data-index="${index}" data-name="${escapeHtml(row.displayName.toLocaleLowerCase())}"><canvas width="180" height="180" data-index="${index}"></canvas><div><h2>${escapeHtml(row.displayName)}</h2><p>Streak ${row.streak} · ${row.lifetimeStreams} stream${row.lifetimeStreams === 1 ? "" : "s"} attended${row.lifetimePromisesKept === undefined ? "" : ` · ${row.lifetimePromisesKept} promises kept`}</p>${row.company.length ? `<p class="company">Often here with ${row.company.map(escapeHtml).join(", ")}</p>` : ""}<div class="dots" aria-label="Attendance over the last ten streams">${row.recentAttendance.map((attended) => `<span class="dot${attended ? " filled" : ""}"></span>`).join("")}</div><p class="lit-time">Lit at ${localTime(row.litAt)}</p></div></article>`).join("\n");
   const comparison = escapeHtml(attendance.summary);
-  const threadSection = receipt.nightSummary ? `<section class="comparison">${receipt.threadsTonight ? `<strong>Threads tonight</strong><p>${receipt.threadsTonight.length ? receipt.threadsTonight.map(([left, right]) => `${escapeHtml(left)} — ${escapeHtml(right)}`).join(" · ") : "None"}</p>` : `<strong>Night summary</strong>`}<p>Lamps were lit ${receipt.nightSummary.firstLitAt ? `from ${localTime(receipt.nightSummary.firstLitAt)} until ${localTime(receipt.nightSummary.lastLitAt!)}` : "at no recorded time"}.</p><p>First to arrive: ${escapeHtml(receipt.nightSummary.firstArrival ?? "None")}.</p><p>Longest streak tonight: ${escapeHtml(receipt.nightSummary.longestStreakName ?? "None")} (${receipt.nightSummary.longestStreak}).</p>${receipt.threadsTonight ? `<p>Threads tied tonight: ${receipt.nightSummary.threadsTied}.</p>` : ""}${Object.hasOwn(receipt.nightSummary,"fragment") ? `<p>Fragment tonight: ${escapeHtml(receipt.nightSummary.fragment ?? "None")}.</p>` : ""}</section>` : "";
+  const threadSection = receipt.nightSummary ? `<section class="comparison">${receipt.threadsTonight ? `<strong>Threads tonight</strong><p>${receipt.threadsTonight.length ? receipt.threadsTonight.map(([left, right]) => `${escapeHtml(left)} — ${escapeHtml(right)}`).join(" · ") : "None"}</p>${receipt.threadDetails?.length ? receipt.threadDetails.map((thread) => `<p>${thread.names.map(escapeHtml).join(" — ")}: ${thread.streamsTogether} streams together · current ${thread.currentStreak} · best ${thread.bestStreak}</p>`).join("") : ""}` : `<strong>Night summary</strong>`}<p>Lamps were lit ${receipt.nightSummary.firstLitAt ? `from ${localTime(receipt.nightSummary.firstLitAt)} until ${localTime(receipt.nightSummary.lastLitAt!)}` : "at no recorded time"}.</p><p>First to arrive: ${escapeHtml(receipt.nightSummary.firstArrival ?? "None")}.</p><p>Longest streak tonight: ${escapeHtml(receipt.nightSummary.longestStreakName ?? "None")} (${receipt.nightSummary.longestStreak}).</p>${receipt.threadsTonight ? `<p>Threads tied tonight: ${receipt.nightSummary.threadsTied}.</p>` : ""}${Object.hasOwn(receipt.nightSummary,"fragment") ? `<p>Fragment tonight: ${escapeHtml(receipt.nightSummary.fragment ?? "None")}.</p>` : ""}</section>` : "";
   const skySection = receipt.sky ? `<section class="sky"><canvas id="sky-map" width="720" height="240"></canvas><h2>Tonight's fragment</h2><p>${receipt.sky.tonight ? `${escapeHtml(receipt.sky.tonight.constellation)} ${escapeHtml(receipt.sky.tonight.fragment)} · stars of this fragment: ${receipt.sky.tonight.stars.map(escapeHtml).join(", ") || "none"}` : "No fragment earned tonight."}</p></section>` : "";
   const promiseSection = receipt.promises ? `<section class="comparison"><strong>Promises</strong><p>${receipt.promises.promisedTonight} promised tonight · ${receipt.promises.kept} of ${receipt.promises.promisedLastStream} promises from last stream were kept.</p>${receipt.promises.keptNames.length ? `<p>Kept by ${receipt.promises.keptNames.map(escapeHtml).join(", ")}.</p>` : ""}</section>` : "";
   const skyImport = receipt.sky ? "import{drawReceiptSky}from'/shared/sky.js';" : "";

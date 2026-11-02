@@ -42,7 +42,7 @@ describe("return promises", () => {
     reduceEnvelope(state, chat("a2", "a", "alice", "✨", "2026-11-02T10:00:01Z"), options);
     expect(state.promiseKeptUserIds).toEqual(["a"]); expect(state.lamps.a?.lifetimePromisesKept).toBe(1); expect(weightedLampCount(state)).toBe(2);
     reduceEnvelope(state, chat("b2", "b", "bao", "!lamp", "2026-11-02T10:00:02Z"), options); expect(weightedLampCount(state)).toBe(3);
-    const card = openingCardFrame(state.openingCard, state.currentStream, state.promiseKeptUserIds, Date.parse("2026-11-02T10:00:03Z"));
+    const card = openingCardFrame(state.openingCard, state.currentStream, state.promiseKeptUserIds, [], Date.parse("2026-11-02T10:00:03Z"));
     expect(card.lines[1]).toBe("1 promised, 1 kept it — the sky starts ahead tonight.");
   });
 

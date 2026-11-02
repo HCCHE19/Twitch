@@ -12,9 +12,20 @@ function isModerator(event: Record<string, unknown>): boolean {
   return badges.some((badge) => badge.set_id === "moderator" || badge.set_id === "broadcaster");
 }
 
-function resolveName(query: string, userIds: string[], state: DerivedState): string | null {
-  const normalized = query.trim().toLocaleLowerCase();
+function resolveName(query: string, userIds: string[], state: DerivedState, envelope?: EventSubEnvelope): string | null {
+  const normalized = query.trim().replace(/^@/u, "").toLocaleLowerCase();
   if (!normalized) return null;
+  const fragments = envelope?.payload.event?.message && (envelope.payload.event.message as { fragments?: unknown }).fragments;
+  if (Array.isArray(fragments)) {
+    const mentions = fragments.flatMap((fragment) => {
+      const value = fragment as { type?: unknown; text?: unknown; mention?: { user_id?: unknown; user_login?: unknown; user_name?: unknown } };
+      if (value.type !== "mention") return [];
+      const name = String(value.mention?.user_name ?? value.mention?.user_login ?? value.text ?? "").replace(/^@/u, "").toLocaleLowerCase();
+      const userId = String(value.mention?.user_id ?? "");
+      return name === normalized && userIds.includes(userId) ? [userId] : [];
+    });
+    if (mentions.length === 1) return mentions[0]!;
+  }
   const candidates = userIds.flatMap((userId) => state.lamps[userId] ? [{ userId, name: state.lamps[userId].displayName.toLocaleLowerCase() }] : []);
   const exact = candidates.filter((candidate) => candidate.name === normalized);
   if (exact.length === 1) return exact[0]!.userId;
@@ -42,7 +53,7 @@ function internalEnvelope(type: "tied" | "untied", source: EventSubEnvelope, str
 export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelope, options: ThreadCommandOptions): EventSubEnvelope[] {
   if (!options.enabled || envelope.metadata.subscription_type !== "channel.chat.message" || !state.currentStream) return [];
   const text = chatText(envelope);
-  const tieMatch = /^!tie\s+(.+)$/iu.exec(text);
+  const tieMatch = /^!tie(?:\s+(.+))?$/iu.exec(text);
   const untieMatch = /^!untie(?:\s+(.+))?$/iu.exec(text);
   if (!tieMatch && !untieMatch) return [];
   const event = envelope.payload.event ?? {};
@@ -53,7 +64,10 @@ export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelo
 
   if (tieMatch) {
     if (!actorId || ignored.has(actorLogin) || !state.currentStream.litUserIds.includes(actorId) || state.threadOutgoingUserIds.includes(actorId)) return [];
-    const targetId = resolveName(tieMatch[1]!, state.currentStream.litUserIds, state);
+    const actorIndex = state.currentStream.litUserIds.indexOf(actorId);
+    const targetId = tieMatch[1]?.trim()
+      ? resolveName(tieMatch[1], state.currentStream.litUserIds, state, envelope)
+      : actorIndex > 0 ? state.currentStream.litUserIds[actorIndex - 1]! : null;
     if (!targetId || targetId === actorId || state.threads.some((thread) => pairMatches(thread, actorId, targetId))) return [];
     const reciprocal = state.pendingThreads.find((pending) => pending.fromUserId === targetId && pending.toUserId === actorId);
     if (reciprocal) {
@@ -70,10 +84,10 @@ export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelo
   if (moderator) {
     if (argument.includes("|")) {
       const [left, right] = argument.split("|", 2);
-      const a = resolveName(left ?? "", Object.keys(state.lamps), state); const b = resolveName(right ?? "", Object.keys(state.lamps), state);
+      const a = resolveName(left ?? "", Object.keys(state.lamps), state, envelope); const b = resolveName(right ?? "", Object.keys(state.lamps), state, envelope);
       if (a && b && a !== b && state.threads.some((thread) => pairMatches(thread, a, b))) pair = [a, b];
     } else if (argument) {
-      const target = resolveName(argument, Object.keys(state.lamps), state);
+      const target = resolveName(argument, Object.keys(state.lamps), state, envelope);
       const matches = target ? state.threads.filter((thread) => thread.userIds.includes(target)) : [];
       if (matches.length === 1) pair = matches[0]!.userIds;
     }
@@ -81,9 +95,13 @@ export function applyThreadCommand(state: DerivedState, envelope: EventSubEnvelo
     const actorThreads = state.threads.filter((thread) => thread.userIds.includes(actorId));
     if (argument) {
       const counterpartIds = actorThreads.map((thread) => thread.userIds.find((userId) => userId !== actorId)!).filter(Boolean);
-      const target = resolveName(argument, counterpartIds, state);
+      const target = resolveName(argument, counterpartIds, state, envelope);
       if (target && actorThreads.some((thread) => pairMatches(thread, actorId, target))) pair = [actorId, target];
-    } else if (actorThreads.length === 1) pair = actorThreads[0]!.userIds;
+    } else {
+      const actorIndex = state.currentStream.litUserIds.indexOf(actorId);
+      const leftId = actorIndex > 0 ? state.currentStream.litUserIds[actorIndex - 1]! : null;
+      if (leftId && actorThreads.some((thread) => pairMatches(thread, actorId, leftId))) pair = [actorId, leftId];
+    }
   }
   return pair ? [internalEnvelope("untied", envelope, state.currentStream.id, pair[0], pair[1], { actor_user_id: actorId, moderator })] : [];
 }

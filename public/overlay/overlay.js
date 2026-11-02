@@ -1,5 +1,5 @@
 import { drawLamp, generateLamp, historicalOpacity, lampScale } from "/shared/lamp.js";
-import { rowLayout, selectVisibleLamps, separateAdjacentHues } from "/shared/layout.js";
+import { rowLayout, selectVisibleLamps } from "/shared/layout.js";
 import { closingFrame } from "/shared/closing.js";
 import { flarePulse } from "/shared/flare.js";
 import { openingCardFrame, returnGreeting } from "/shared/memory.js";
@@ -8,11 +8,11 @@ import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
-import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
+import { placeThreadArrival, threadVisuals } from "/shared/threads.js";
 import { drawSkyGlyph, drawSkyOverlay, updateSkyDisplayLock } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
 import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
-import { animateRowLayout, arrivalStartTime, reconcileLampOrder } from "/shared/row-motion.js";
+import { animateRowLayout, reconcileLampOrder, releaseArrivalBatch } from "/shared/row-motion.js";
 import { closingHintVisible, keptPromisePulse, promiseKnotFrame } from "/shared/promises.js";
 
 const canvas = document.querySelector("#lamps");
@@ -35,8 +35,10 @@ let windTracker = { streamId: null, startedAt: null, lastTriggeredAt: null, sign
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 let stableOrderIds = [];
 let layoutMotion = new Map();
-const pendingArrivalIds = new Set();
+const queuedArrivals = new Map();
+let arrivalBatchStartedAt = null;
 const arrivalStarts = new Map();
+let lastThreadSlideAt = null;
 let skyDisplayLock = null;
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
 
@@ -94,7 +96,7 @@ function render(time) {
   canvas.style.opacity = preferences.hidden ? "0" : "1";
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, renderNow, reducedMotion.matches);
-  const opening = openingCardFrame(state?.openingCard, state?.currentStream, promisesEnabled ? state?.promiseKeptUserIds : [], renderNow);
+  const opening = openingCardFrame(state?.openingCard, state?.currentStream, promisesEnabled ? state?.promiseKeptUserIds : [], threadsEnabled ? state?.threads : [], renderNow);
   if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, renderNow, selectedLayout, momentLevel, reducedMotion.matches, skyDisplayLock);
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, renderNow, windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, renderNow);
@@ -128,15 +130,25 @@ function render(time) {
     const closingIds = state.closingMoment?.litUserIds ?? [];
     const visibleClosingIds = new Set(closing.kind === "lamps" ? closing.visibleUserIds : []);
     const allLamps = Object.values(state.lamps);
+    const heldNewIds = new Set([...queuedArrivals].filter(([, value]) => value.isNew).map(([userId]) => userId));
     stableOrderIds = reconcileLampOrder(
-      stableOrderIds, allLamps, (lamp) => generateLamp(lamp.userId).hue,
+      stableOrderIds, allLamps.filter((lamp) => !heldNewIds.has(lamp.userId)), (lamp) => generateLamp(lamp.userId).hue,
       ({ rowLength, collisions }) => console.warn(`[layout] ${collisions} unavoidable hue-distance violation(s) at row length ${rowLength}`)
     );
-    let allOrdered = stableOrderIds.flatMap((userId) => state.lamps[userId] ? [{ lamp: state.lamps[userId] }] : []);
-    if (threadsEnabled) {
-      allOrdered = separateAdjacentHues(preferThreadAdjacency(allOrdered, state.threads, state.currentStream?.litUserIds), (item) => generateLamp(item.lamp.userId).hue);
-      stableOrderIds = allOrdered.map((item) => item.lamp.userId);
+    const batch = releaseArrivalBatch(queuedArrivals, arrivalBatchStartedAt, renderNow);
+    if (batch.length) {
+      stableOrderIds = reconcileLampOrder(stableOrderIds, allLamps, (lamp) => generateLamp(lamp.userId).hue);
+      for (const [userId, value] of batch) {
+        if (threadsEnabled) {
+          const placement = placeThreadArrival(stableOrderIds, userId, state.threads, state.currentStream?.litUserIds, renderNow, lastThreadSlideAt);
+          stableOrderIds = placement.orderIds; lastThreadSlideAt = placement.lastSlideAt;
+        }
+      }
+      const base = renderNow + 300;
+      batch.forEach(([userId], index) => arrivalStarts.set(userId, base + index * 120));
+      queuedArrivals.clear(); arrivalBatchStartedAt = null;
     }
+    const allOrdered = stableOrderIds.flatMap((userId) => state.lamps[userId] ? [{ lamp: state.lamps[userId] }] : []);
     const allowedIds = opening.active ? new Set() : closing.kind === "lamps" ? new Set(closingIds) : closing.kind === "none" ? new Set(allLamps.map((lamp) => lamp.userId)) : new Set();
     const visible = selectVisibleLamps(allOrdered.filter((item) => allowedIds.has(item.lamp.userId)).map((item) => item.lamp));
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
@@ -145,8 +157,6 @@ function render(time) {
     const targetLayout = layout(visible);
     const motion = animateRowLayout(layoutMotion, targetLayout, renderNow);
     layoutMotion = motion.tracker;
-    const gapOpened = motion.movedExisting.some((userId) => !pendingArrivalIds.has(userId));
-    for (const userId of pendingArrivalIds) { arrivalStarts.set(userId, arrivalStartTime(renderNow, gapOpened)); pendingArrivalIds.delete(userId); }
     const laidOut = motion.items;
     const threadLines = threadsEnabled ? threadVisuals(laidOut, state) : { pending: [], solid: [], waiting: [] };
     for (const line of threadLines.pending) {
@@ -155,11 +165,16 @@ function render(time) {
     }
     for (const line of threadLines.solid) {
       context.strokeStyle = "rgba(204,68,72,.62)"; context.lineWidth = 1.5;
-      context.beginPath(); context.moveTo(line.from.x, line.from.y - line.from.size * .35); context.lineTo(line.to.x, line.to.y - line.to.size * .35); context.stroke();
+      const fromY = line.from.y - line.from.size * .35, toY = line.to.y - line.to.size * .35;
+      context.beginPath(); context.moveTo(line.from.x, fromY);
+      if (line.arc) context.quadraticCurveTo((line.from.x + line.to.x) / 2, Math.min(fromY, toY) - Math.min(72, Math.abs(line.to.x - line.from.x) * .18), line.to.x, toY);
+      else context.lineTo(line.to.x, toY);
+      context.stroke();
+      if (line.streak >= 2) { context.fillStyle = "rgba(231,177,164,.72)"; context.font = "600 11px Space Grotesk,system-ui,sans-serif"; context.textAlign = "center"; context.fillText(String(line.streak), (line.from.x + line.to.x) / 2, Math.min(fromY, toY) - (line.arc ? 14 : 5)); }
     }
     for (const line of threadLines.waiting) {
       const startX = line.from.x; const startY = line.from.y - line.from.size * .34; const endX = startX + line.direction * line.from.size * .34; const endY = line.from.y + line.from.size * .08;
-      context.strokeStyle = "rgba(204,68,72,.48)"; context.lineWidth = 1.4; context.beginPath(); context.moveTo(startX, startY); context.bezierCurveTo(startX, startY + line.from.size * .28, endX, endY - line.from.size * .14, endX, endY); context.stroke();
+      context.save(); context.setLineDash([5, 6]); context.strokeStyle = "rgba(204,68,72,.48)"; context.lineWidth = 1.4; context.beginPath(); context.moveTo(startX, startY); context.bezierCurveTo(startX, startY + line.from.size * .28, endX, endY - line.from.size * .14, endX, endY); context.stroke(); context.restore();
       context.fillStyle = "rgba(204,68,72,.62)"; context.beginPath(); context.arc(endX, endY, Math.max(2, line.from.size * .022), 0, Math.PI * 2); context.fill();
     }
     const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, renderNow);
@@ -185,6 +200,7 @@ function render(time) {
     for (const [itemIndex, item] of laidOut.entries()) {
       if (item.lamp) {
         const arrivalStart = arrivalStarts.get(item.lamp.userId); if (arrivalStart !== undefined && renderNow < arrivalStart) continue;
+        if (queuedArrivals.has(item.lamp.userId)) continue;
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
         const opacity = (bright ? 1 : historicalOpacity(item.lamp.streamsSinceLit)) * opening.lampOpacity;
@@ -268,7 +284,10 @@ function connect() {
       const nextState = packet.state, receivedAt = Date.now();
       for (const lamp of Object.values(nextState.lamps ?? {})) {
         const changed = state?.lamps?.[lamp.userId]?.lastLitAt !== lamp.lastLitAt;
-        if (changed && Math.abs(receivedAt - Date.parse(lamp.lastLitAt)) < 5_000) pendingArrivalIds.add(lamp.userId);
+        if (changed && Math.abs(receivedAt - Date.parse(lamp.lastLitAt)) < 5_000) {
+          queuedArrivals.set(lamp.userId, { litAt: lamp.lastLitAt, isNew: !state?.lamps?.[lamp.userId] });
+          arrivalBatchStartedAt ??= receivedAt;
+        }
       }
       state = nextState; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       skyDisplayLock = updateSkyDisplayLock(skyDisplayLock, state);

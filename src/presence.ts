@@ -125,6 +125,15 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     };
     state.pendingThreads = [];
     state.threadOutgoingUserIds = [];
+    for (const thread of state.threads) {
+      const together = thread.userIds.every((userId) => lit.has(userId));
+      if (together && thread.lastCountedStreamId !== state.currentStream.id) {
+        thread.streamsTogether = (thread.streamsTogether ?? 0) + 1;
+        thread.currentStreak = (thread.currentStreak ?? 0) + 1;
+        thread.bestStreak = Math.max(thread.bestStreak ?? 0, thread.currentStreak);
+        thread.lastCountedStreamId = state.currentStream.id;
+      } else if (!together) thread.currentStreak = 0;
+    }
     for (const lamp of Object.values(state.lamps)) {
       if (lit.has(lamp.userId)) lamp.streamsSinceLit = 0;
       else { lamp.streamsSinceLit += 1; lamp.streak = 0; }
@@ -166,7 +175,7 @@ export function reduceEnvelope(state: DerivedState, envelope: EventSubEnvelope, 
     if (!userIds[0] || !userIds[1] || userIds[0] === userIds[1] || !streamId) return state;
     if (state.threads.some((thread) => thread.userIds[0] === userIds[0] && thread.userIds[1] === userIds[1])) return state;
     if (userIds.some((userId) => state.threads.filter((thread) => thread.userIds.includes(userId)).length >= 3)) return state;
-    state.threads.push({ userIds, createdAt: envelope.metadata.message_timestamp, createdStreamId: streamId });
+    state.threads.push({ userIds, createdAt: envelope.metadata.message_timestamp, createdStreamId: streamId, streamsTogether: 0, currentStreak: 0, bestStreak: 0, lastCountedStreamId: null });
     state.pendingThreads = state.pendingThreads.filter((pending) => !(userIds.includes(pending.fromUserId) && userIds.includes(pending.toUserId)));
     if (state.currentStream?.id === streamId) for (const userId of userIds) if (!state.threadOutgoingUserIds.includes(userId)) state.threadOutgoingUserIds.push(userId);
     return state;

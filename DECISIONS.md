@@ -260,3 +260,12 @@
 - Implementation: a kept lamp contributes one extra unit to the fragment threshold, receives a brief gold landing pulse, and increments its ledger-derived lifetime kept total. Aggregate counts and keeper names appear in the local streamer receipt; non-returner names never do.
 - Decision: the closing invitation appears only near the channel's usual end or after the broadcaster types `!closing`.
 - Implementation: usual duration is the median of completed stream durations rebuilt from the ledger. With no completed history the hint remains hidden unless `!closing` is received. The opening card is capped at three lines.
+
+## 2026-11-02 — Thread commands, streaks, and stable placement
+
+- Decision: accept `!tie @name` using Twitch mention fragments when present; bare `!tie` and `!untie` target the immediately previous lit viewer and do nothing without that neighbour.
+- Implementation: mention text still has an exact-name/unique-prefix fallback. Existing mutuality, one-outgoing-per-stream, moderator removal, and three-thread cap remain enforced.
+- Decision: count consecutive completed streams where both sides are present, reset on a missed stream, and restart at one on reunion.
+- Implementation: total, current, and best counts rebuild from offline ledger events. Solid threads show streak two or higher; one-sided waiting threads are dashed and do not disclose who is absent. Local receipts project the just-ending stream into all three counts.
+- Decision: thread adjacency may move at most two established lamps, at most once per five seconds, and never above thirty lamps; longer connections use arcs over no more than three intervening lamps.
+- Implementation: arrivals are held for a 1.5-second display batch, the final order is computed once, existing lamps ease for 300ms, then arrivals drop in sequence. If a safe slide is unavailable the arrival remains appended; relationships spanning more than three lamps stay in the receipt but are not drawn.

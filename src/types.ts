@@ -55,6 +55,10 @@ export interface ThreadState {
   userIds: [string, string];
   createdAt: string;
   createdStreamId: string;
+  streamsTogether: number;
+  currentStreak: number;
+  bestStreak: number;
+  lastCountedStreamId: string | null;
 }
 
 export interface PendingThread {
@@ -140,6 +144,12 @@ export interface PresenceReceipt {
   presence: PresenceReceiptRow[];
   attendance: AttendanceComparison;
   threadsTonight?: Array<[string, string]>;
+  threadDetails?: Array<{
+    names: [string, string];
+    streamsTogether: number;
+    currentStreak: number;
+    bestStreak: number;
+  }>;
   nightSummary?: {
     firstLitAt: string | null;
     lastLitAt: string | null;
