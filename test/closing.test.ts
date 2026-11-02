@@ -10,12 +10,15 @@ describe("closing moment", () => {
     expect(closingFrame(moment, start)).toEqual({ kind: "lamps", visibleUserIds: ["a", "b", "c"] });
     expect(closingFrame(moment, start + 150)).toEqual({ kind: "lamps", visibleUserIds: ["b", "c"] });
     expect(closingFrame(moment, start + 300)).toEqual({ kind: "lamps", visibleUserIds: ["c"] });
-    expect(closingFrame(moment, start + 450)).toEqual({ kind: "summary", lines: ["3 lamps tonight, 2 returning", "1 of 3 promised to come back"] });
+    expect(closingFrame(moment, start + 450)).toEqual({ kind: "summary", lines: ["3 lamps tonight. 2 returning.", "1 promised to come back."] });
     expect(closingFrame(moment, start + 10_449).kind).toBe("summary");
     expect(closingFrame(moment, start + 10_450)).toEqual({ kind: "clear" });
   });
 
   it("skips sequential motion when reduced motion is requested", () => {
-    expect(closingFrame(moment, start, true)).toEqual({ kind: "summary", lines: ["3 lamps tonight, 2 returning", "1 of 3 promised to come back"] });
+    expect(closingFrame(moment, start, true)).toEqual({ kind: "summary", lines: ["3 lamps tonight. 2 returning.", "1 promised to come back."] });
+  });
+  it("adds threads only as a count while keeping two short lines", () => {
+    expect(closingFrame(moment, start, true, 3).lines).toEqual(["3 lamps tonight. 2 returning.", "1 promised to come back. 3 threads."]);
   });
 });

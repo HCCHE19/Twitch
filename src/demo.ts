@@ -6,10 +6,11 @@ import type { EventSubEnvelope } from "./types.js";
 import { momentDemo, nightDemo, retimeDemoEnvelope } from "./demo-events.js";
 import { applyThreadCommand, applyThreadReunion } from "./threads.js";
 import { applyPromiseCommand } from "./promises.js";
+import { demoNotices, demoSpeed } from "./demo-report.js";
 
 const args = process.argv.slice(2);
 const speedIndex = args.indexOf("--speed");
-const speed = speedIndex >= 0 ? Number(args[speedIndex + 1]) : 1;
+let speed = speedIndex >= 0 ? Number(args[speedIndex + 1]) : 1;
 const lampsIndex = args.indexOf("--lamps");
 const lampCount = lampsIndex >= 0 ? Number(args[lampsIndex + 1]) : undefined;
 const portIndex = args.indexOf("--port");
@@ -18,10 +19,13 @@ const momentIndex = args.indexOf("--moment");
 const moment = momentIndex >= 0 ? args[momentIndex + 1] : undefined;
 const delayIndex = args.indexOf("--delay");
 const delaySeconds = delayIndex >= 0 ? Number(args[delayIndex + 1]) : moment ? 10 : 0;
-const valueIndexes = new Set([speedIndex + 1, lampsIndex + 1, portIndex + 1, momentIndex + 1, delayIndex + 1].filter((index) => index > 0));
+const minutesIndex = args.indexOf("--minutes");
+const minutes = minutesIndex >= 0 ? Number(args[minutesIndex + 1]) : moment === "night" && speedIndex < 0 ? 4 : undefined;
+if (minutesIndex >= 0 && speedIndex >= 0) throw new Error("Choose --minutes or --speed, not both");
+const valueIndexes = new Set([speedIndex + 1, lampsIndex + 1, portIndex + 1, momentIndex + 1, delayIndex + 1, minutesIndex + 1].filter((index) => index > 0));
 const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
 if ((!file && lampCount === undefined && !moment) || (moment && !["ignite", "fragment", "complete", "night"].includes(moment)) || !Number.isFinite(speed) || speed <= 0 || !Number.isFinite(delaySeconds) || delaySeconds < 0 || delaySeconds > 60 || !Number.isInteger(port) || port < 1 || port > 65535 || (lampCount !== undefined && (!Number.isInteger(lampCount) || lampCount < 1))) {
-  throw new Error("Usage: npm run demo -- [events.jsonl | --lamps 5|30|200 | --moment ignite|fragment|complete|night] --speed 1 [--delay 10] [--port 8787]");
+  throw new Error("Usage: npm run demo -- [events.jsonl | --lamps 5|30|200 | --moment ignite|fragment|complete|night] [--minutes 4 | --speed 1] [--delay 10] [--port 8787]");
 }
 
 function generatedDemo(count: number): EventSubEnvelope[] {
@@ -53,6 +57,7 @@ const envelopes = moment
   : lampCount !== undefined
   ? generatedDemo(lampCount)
   : (await readFile(file!, "utf8")).split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line) as EventSubEnvelope);
+if (minutes !== undefined) speed = demoSpeed(envelopes, minutes);
 const state = emptyState(true);
 const layout = await loadOverlayLayout();
 const moments = await loadMomentLevel();
@@ -61,15 +66,13 @@ const overlay = await startOverlayServer(() => state, port, layout, night ? 3 : 
 console.log("[demo] DEMO REPLAY");
 console.log(`[demo] overlay: http://localhost:${port}/overlay/ (${layout})`);
 if(delaySeconds>0){console.log(`[demo] replay starts in ${delaySeconds} seconds`);await new Promise((resolve)=>setTimeout(resolve,delaySeconds*1000))}
-let previousTime: number | undefined;
 const sourceStart = Date.parse(envelopes[0]!.metadata.message_timestamp);
 const replayStart = Date.now();
 for (const envelope of envelopes) {
   const currentTime = Date.parse(envelope.metadata.message_timestamp);
-  if (previousTime !== undefined && Number.isFinite(currentTime)) {
-    const delay = Math.min(night ? 10_000 : 3_000, Math.max(0, currentTime - previousTime) / speed);
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
+  const wait = replayStart + (currentTime - sourceStart) / speed - Date.now();
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  const previousState = structuredClone(state);
   const replayEnvelope = retimeDemoEnvelope(envelope, replayStart, sourceStart, speed);
   const flare = night ? createFlareEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" }) : null;
   const before = new Set(state.currentStream?.litUserIds ?? []);
@@ -83,8 +86,7 @@ for (const envelope of envelopes) {
   }
   if (flare) reduceEnvelope(state, flare, { broadcasterLogin: "demo_broadcaster" });
   overlay.broadcast(state);
-  console.log(`[demo] ${envelope.metadata.subscription_type ?? envelope.metadata.message_type}`);
-  previousTime = currentTime;
+  for (const notice of demoNotices(previousState, state)) console.log(`[demo] ${notice}`);
 }
 console.log(`[demo] complete: ${Object.keys(state.lamps).length} lamps; overlay state flag demoReplay=${state.demoReplay}`);
 if (args.includes("--exit")) await overlay.close();

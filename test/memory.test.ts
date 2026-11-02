@@ -10,7 +10,8 @@ describe("opening memory card", () => {
     expect(openingCardFrame(card, { id: "s2", startedAt: card.startedAt, litUserIds: ["a", "c"] }, [], [], start + 9_999)).toEqual({
       active: true,
       lampOpacity: 0,
-      lines: ["Last stream: 3 lamps. 2 of them are back tonight."]
+      panelPulse: 0,
+      lines: ["3 lamps last time. 2 are back."]
     });
     expect(openingCardFrame(null, { id: "s1", startedAt: card.startedAt, litUserIds: [] }, start)).toEqual({ active: false, lampOpacity: 1 });
   });
@@ -18,6 +19,15 @@ describe("opening memory card", () => {
   it("fades lamps in after the card", () => {
     expect(openingCardFrame(card, { id: "s2", startedAt: card.startedAt, litUserIds: [] }, [], [], start + 10_500)).toEqual({ active: false, lampOpacity: .5 });
     expect(openingCardFrame(card, { id: "s2", startedAt: card.startedAt, litUserIds: [] }, [], [], start + 11_000)).toEqual({ active: false, lampOpacity: 1 });
+  });
+
+  it("keeps only a short attendance line and optional kept-promise line, with one panel pulse", () => {
+    const stream = { litUserIds: ["a"] }, promised = { ...card, previousPromiseUserIds: ["a", "b"] };
+    const frame = openingCardFrame(promised, stream, ["a"], [{ userIds: ["a", "b"] }], start + 600);
+    expect(frame.lines).toEqual(["3 lamps last time. 1 is back.", "1 kept their promise."]);
+    expect(frame.panelPulse).toBe(1);
+    expect(openingCardFrame(promised, stream, [], [], start + 1500).lines).toHaveLength(1);
+    expect(openingCardFrame(promised, stream, ["a"], [], start + 1500).panelPulse).toBe(0);
   });
 });
 

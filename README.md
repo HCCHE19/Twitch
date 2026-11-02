@@ -56,6 +56,10 @@ The full-night replay is about four minutes and enables Sky, Threads, Wind, Prom
 npm run demo -- --moment night --port 8790
 ```
 
+For a slower walkthrough, use `npm run demo -- --moment night --minutes 8 --port 8790`. `--minutes` stretches every event interval evenly; the default night timeline is four minutes, plus the startup countdown and closing animation. Choose either `--minutes` or `--speed`. The Terminal prints named arrivals, ties, promises, flares, fragment counts, completion, and the closing hint as they happen. Longer timelines also stretch gaps between flares, so a sufficiently slow replay may not trigger the ten-second wind window.
+
+Opening cards use at most two short lines, with one soft sky-panel pulse instead of extra explanation. Closing cards use attendance, promise totals, and an optional thread count. Thread lines are warm red with a soft glow; pending ties are dashed, and streaks sit on small dark pills.
+
 When events overlap, ignite always plays immediately. Fragment and constellation moments play in order—fragment first, completion second—and none are dropped; the corner panel advances only with its own moment. Flares and closing continue underneath without interrupting that queue.
 
 The overlay displays `DEMO REPLAY`; demo output must not be presented as a real Twitch test.

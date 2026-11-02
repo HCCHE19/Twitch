@@ -303,3 +303,10 @@
 - Decision: a sky panel caption advances on the same queued moment transition as its drawing and may not expose the completed state before that moment starts.
 - Implementation: demo replay now retimes `stream.online.started_at` together with its envelope timestamp, preventing compressed synthetic history from masquerading as multi-hour streams.
 - Verification: all 103 tests and TypeScript checks passed. Repeated the 1920×1080 Playwright capture (520 frames, every 500 ms) into ignored `tmp/night/`, with canvas-text tracking. The hint first appears at frame 453 after explicit `!closing`, clear above the dense row (frame 460). Leo first renders complete at frame 397 during the completion transition, with no subsequent return to 5 of 6. Checked representative before/after frames visually; the two reported findings are resolved.
+
+## 2026-11-02 — Slower night walkthrough and shorter cards
+
+- Decision: add `--minutes` with four minutes as the default night timeline. Scale every interval evenly and print named notable events, including pending/mutual ties, promises, fragment progress, completion and the closing hint. Startup countdown and animation durations remain separate; `--speed` remains an alternative, not a simultaneous option. Real cooldown windows are unchanged.
+- Decision: threads use warm red, 2px at full size and 1.5px at dense tiers, soft matching glow and brighter endpoints. Pending/waiting lines use 60% opacity; streak numbers use red on a dark pill. Arcs share the same style.
+- Decision: opening cards have at most two short lines, attendance then kept promises only when nonzero. Remove waiting-thread and sky explanation text; the corner panel gives one soft pulse on opening, suppressed for reduced motion. Closing cards keep attendance, promise count and optional mutual-present thread count to two lines.
+- Verification: 107 tests pass, TypeScript checks pass, and a 1920×1080 Chrome walkthrough produced no page errors. Inspected the opening, populated row and closing screenshots in ignored `tmp/small-fixes-*.png`; checked the named event output through the offline transition. No production dependency was added.
