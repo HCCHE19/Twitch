@@ -283,3 +283,10 @@
 - Implementation: removed the GitHub Pages receipt, committed sample, export command, and export code. Receipt JSON and HTML remain gitignored local files; `npm run verify` remains the integrity proof.
 - Decision: do not retain chat text.
 - Implementation: before hashing or writing a chat event, the ledger replaces its message with a boolean presence qualification and retains only the chatter identity fields required for deterministic rebuild and receipt verification. Thread, promise, and flare actions remain separate derived ledger events without chat text.
+
+## 2026-11-02 — Four-step setup and roadmap
+
+- Decision: the primary streamer path is exactly install, start, open `/setup` and click Connect Twitch, then paste one overlay URL into OBS. Everything else is optional.
+- Implementation: rewrote setup around the authorization-code flow, reduced viewer instructions to one line, moved all controls and commands under optional features, and kept finalize, verify, rebuild, migration, and demos out of the required path.
+- Decision: name four future directions without implying they exist today.
+- Implementation: added viewer-owned Twitch-login records, `!me`, cross-channel threads, and a packaged one-click install under What's next. Font and constellation-data attribution remains unchanged.

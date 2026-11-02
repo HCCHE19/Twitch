@@ -4,76 +4,30 @@ Lamplight gives a silent Twitch viewer one gentle action: send `!lamp`, `!lurk`,
 
 All lamp and sky artwork and motion are generated in code; the only bundled assets are the Space Grotesk font under the OFL and the constellation star positions and magnitudes from the d3-celestial dataset under its BSD licence, with the licence text included in this repo.
 
-## Requirements
+## Streamer setup
 
-- macOS, Node.js 20 or newer, OBS, and the Twitch CLI
-- A Twitch developer application whose OAuth redirect URL is exactly `http://localhost:3939`
-- The broadcaster account signed into the Twitch CLI
+You need Node.js 20 or newer and OBS. In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), create an application with the exact OAuth redirect URL `http://localhost:3939`. Twitch credentials stay in `.env` and are never sent to the browser.
 
-## Twitch setup
+1. **Install.** Run `npm install`, copy `.env.example` to `.env`, then add the app's client id, client secret, and your lowercase Twitch channel login. `TWITCH_ACCESS_TOKEN` is optional compatibility for an existing manual token.
+2. **Start.** Run `npm run build && npm start` and leave that Terminal window open.
+3. **Connect.** Open `http://localhost:8787/setup`, click **Connect Twitch**, approve the single read-only `user:read:chat` scope, and return to Lamplight.
+4. **Add OBS.** Add `http://localhost:8787/overlay/` as a 1920×1080 Browser source. Leave Local file, Control audio via OBS, and custom frame rate off.
 
-1. In the [Twitch Developer Console](https://dev.twitch.tv/console/apps), register an application. Add `http://localhost:3939` as its OAuth redirect URL.
-2. Copy `.env.example` to `.env`. Set `TWITCH_CLIENT_ID` to the application's Client ID and `TWITCH_CHANNEL_LOGIN` to the broadcaster login in lowercase.
-3. Mint the minimum-scope broadcaster user token:
+Viewer side: one emote lights your lamp; everything else is optional.
 
-   ```bash
-   twitch token -u -p 3939 -s user:read:chat
-   ```
+Lamplight subscribes to `channel.chat.message`, `stream.online`, and `stream.offline` and never requests chat-write permission. It also accepts one Unicode emoji, `!lamp`, or `!lurk`. Twitch references: [Example Chatbot](https://dev.twitch.tv/docs/chat/chatbot-guide/), [EventSub WebSockets](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/), and [subscription types](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/).
 
-4. Put only the User Access Token value in `TWITCH_ACCESS_TOKEN`. Never commit `.env`.
-5. Install and build:
+## Optional controls and features
 
-   ```bash
-   npm install
-   npm run build
-   ```
+Open `http://localhost:8787/control/` to change Sky, Threads, Wind, Promises, name plates, moment level, fragment threshold, and top/bottom layout live. The same private page controls compact mode, hiding the band, and roll call. Settings are stored locally in `data/settings.json`; `.env` remains credentials-only.
 
-The app subscribes to `channel.chat.message`, `stream.online`, and `stream.offline`. It never requests permission to write to chat. Twitch references: [Example Chatbot](https://dev.twitch.tv/docs/chat/chatbot-guide/), [EventSub WebSockets](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/), and [subscription types](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/).
+- **Memory:** prior lamps return dim, relighting shows lifetime attendance, `!back` creates a no-pressure promise, and a kept promise gives a gold landing pulse and extra fragment-threshold weight.
+- **Flares and wind:** an already-lit viewer's single Twitch emote gives a cooldown-limited flare. Neighbours ripple; two nearby flares can spark; five different flares can trigger wind when enabled.
+- **Sky:** reaching the threshold earns one deterministic, non-duplicate fragment from twelve code-drawn zodiac constellations. The corner panel and local receipt derive progress from the ledger.
+- **Moments:** arrival and fragment effects stay inside the lamp band and corner panel. `quiet`, `normal`, and `big` change intensity; reduced-motion preferences remove travel and bounce.
+- **Threads:** a lit viewer can use `!tie name`, `!tie @name`, or bare `!tie` for the lamp immediately left. Mutual ties persist; `!untie` removes them; streaks count consecutive streams together. The bot never replies in chat.
 
-## Run with OBS
-
-1. Run `npm start` and leave that Terminal window open.
-2. In OBS, add a Browser source using `http://localhost:8787/overlay/`, width `1920`, and height `1080`. Leave Local file, Control audio via OBS, and custom frame rate off.
-3. Start a Twitch stream. A viewer sends `!lamp`, `!lurk`, or exactly one emote. Lamplight never replies in chat. Once lit, another message containing exactly one emote produces a 600ms flare, with a ten-second per-viewer cooldown and no counter.
-   If a previous stream exists, the band first shows its lamp count and how many of those viewers have returned, then fades the persistent lamps in after ten seconds.
-   When a dim lamp relights, its full-size name plate briefly says which lifetime stream attendance this is.
-4. While live, Lamplight samples Twitch's reported `viewer_count` immediately and every 60 seconds, recording it beside the number of lamps lit at that moment.
-5. Stop the stream. Lamps extinguish in first-lit order, the band briefly reports total and returning lamps, and Twitch's `stream.offline` event automatically writes private JSON and local HTML under `receipts/`.
-
-Set `LAYOUT=bottom` (the default windowsill) or `LAYOUT=top` in `.env`, then restart Lamplight to compare OBS placement.
-Open `http://localhost:8787/control/` privately to compact or hide the band.
-The same private page can start a roll call and mark the highlighted lamp called; it cycles through uncalled lamps in first-lit order and turns off when complete.
-Set `THRESHOLD_N` in `.env` (default `10`) to choose when the once-per-stream left-to-right lamp wave runs.
-Set `SHOW_NAMES=false` to hide every name plate and return greeting on the overlay; receipt names are unaffected.
-Name plates support Japanese and Chinese display names through system-font fallbacks and bounded text fitting.
-When a lamp lights for the first time ever, its rendered neighbours briefly tilt and brighten toward it in welcome.
-Flares send a delayed, fainter pulse to adjacent lamps; two different viewers flaring within five seconds briefly draw a thin spark between them.
-
-### Optional constellation sky and wind
-
-Both additions are isolated and disabled by default. Set `SKY=true` to let each stream that reaches `THRESHOLD_N` earn one deterministic, non-duplicate fragment from a 72-fragment sky: twelve zodiac constellations with six connected regions each. The top-right panel shows untouched, in-progress, and complete constellations; the opening card enlarges the latest progress, and the streamer's local receipt shows the full sky plus the display names present at the earning moment. Fragment events, including the stable user IDs required for rebuild, are hash-chained in the private ledger. The numeric star positions come from the permissively licensed [d3-celestial constellation data](https://github.com/ofrohn/d3-celestial/blob/master/data/constellations.lines.json); Lamplight generates its own regions, lines, glyphs, and animation in code.
-
-Set `WIND=true` to make five different viewers flaring within ten seconds lean every flame together for about one second. Wind has a ten-second global cooldown and adds no chat or ledger output.
-
-### Moments without taking over the stream
-
-Lamplight keeps its arrival and collection moments inside the lamp band and corner panel by design. A newly lit lamp drops into the sill, lands with a brief wick bloom and sends one light ripple past its neighbours. A newly earned sky fragment produces a restrained sweep along the band and settles inside the panel. Completing all six regions of a constellation lights its stars in sequence in a fixed area above the row, flares the band once, and returns the drawing to the panel; it never uses frame-edge flashes or strobing.
-
-Set `MOMENTS=quiet`, `normal`, or `big` in `.env`, then restart Lamplight. `normal` is the default. `quiet` keeps only the arrival ripple and panel effects, with no constellation drawn above the row. `big` is intended for demos and allows a completion moment to use up to half the frame height; `normal` is capped at one third. Reduced-motion preferences replace movement with brief, low-intensity emphasis.
-
-### Optional red threads
-
-Red threads are isolated behind `THREADS=false` by default. Set `THREADS=true` and restart to enable them. An already-lit viewer may send `!tie Display Name` once per stream. The target must be another lamp lit tonight; names match case-insensitively by exact name first, then unique prefix. The one-way request is a faint dashed line and is not recorded. If the target sends `!tie` back in the same stream, Lamplight records a mutual thread and draws a thin solid red line. Each lamp keeps its oldest three mutual threads. In later streams, a thread returns when both lamps are lit; while only one is present it hangs from that lamp with a small knot, and both lamps flare when reunited.
-
-Either party may use `!untie Display Name`; bare `!untie` works only when that viewer has exactly one thread. A moderator may use `!untie Name A | Name B`, or `!untie Display Name` when that lamp has exactly one thread. Accepted removals are ledger events. Invalid, ambiguous, self, broadcaster, absent, dim, over-cap, or second-outgoing attempts have no visible effect. The bot never responds in chat. Thread-enabled receipts list mutual pairs tied that night and four rule-generated lines: lit-time range, first arrival, longest streak, and thread count.
-
-If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
-
-```bash
-npm run verify -- receipts/<stream-id>.json
-```
-
-The local receipt includes minute-by-minute Twitch viewer samples, lit-lamp samples, both peaks, and a plain-English comparison. The streamer can search attendees, inspect ten-stream attendance history, and see up to three display names that most often attended together. These are different measurements: Twitch reports concurrent viewers, while lit lamps prove only that a viewer sent a qualifying presence message. The verifier recomputes the event-log chain, chain anchors, event count, source-message references, and receipt hash. `events.jsonl` is the ledger; `state.json` is derived from it. To prove that, run `npm run rebuild`.
+When Twitch sends `stream.offline`, Lamplight writes private JSON and HTML to `receipts/`. If that event never arrives, run `npm run finalize`. Verify the ledger and receipt with `npm run verify -- receipts/<stream-id>.json`; rebuild derived state with `npm run rebuild`. These commands, the control page, `npm run privacy:migrate`, and all feature toggles are optional.
 
 ## Demo and tests
 
@@ -111,6 +65,13 @@ npm run secrets:check
 - Press, not research: [Tubefilter reported in August 2025](https://www.tubefilter.com/2025/08/27/twitch-viewbot-crackdown-zach-bussey/) that more than 41,000 channels were flagged during Twitch's viewbot crackdown and that analysts saw 5%–24% viewership drops, which Twitch disputed.
 
 These sources motivate the problem; no study yet shows that lightweight presence makes viewers return. Lamplight makes that hypothesis testable without turning presence into competition.
+
+## What's next
+
+- Let viewers see their own attendance record through a Twitch login.
+- Add a private `!me` command.
+- Let mutual threads reach across channels.
+- Package Lamplight as a one-click install.
 
 ## Privacy and boundaries
 
