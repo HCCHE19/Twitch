@@ -74,7 +74,9 @@ export async function createAuthManager(options: { path?: string; fetcher?: type
   const createAuthorizationUrl = (): string => {
     if (!clientSecret) throw new Error("TWITCH_CLIENT_SECRET is required for one-click setup");
     expectedState = randomBytes(24).toString("hex"); stateExpiresAt = Date.now() + 10 * 60_000;
-    const url = new URL(AUTHORIZE_URL); url.search = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: REDIRECT_URI, scope: REQUIRED_SCOPE, state: expectedState }).toString(); return url.toString();
+    // Explicit clicks should show authorization again, including an already-connected account.
+    // https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
+    const url = new URL(AUTHORIZE_URL); url.search = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: REDIRECT_URI, scope: REQUIRED_SCOPE, force_verify: "true", state: expectedState }).toString(); return url.toString();
   };
   const startCallbackServer = async (): Promise<void> => {
     callbackServer = createServer(async (request, response) => {

@@ -317,3 +317,9 @@
 - Implementation: lock the chosen threshold in a hash-chained `lamplight.sky.threshold` event at stream start, rebuild it with the ledger, and retain it across restart. Setting changes apply next stream. Old active ledgers without a lock get one at startup. Existing numeric settings remain manual; the night demo and this machine's existing manual 3 remain intact.
 - Decision: corner progress counts landed lamps, with two units and a fading +2 for kept promises. An earned fragment fills the bar, pulses softly once over 1.2 seconds, then resets; the existing one-fragment-per-stream rule is unchanged. Hide progress after this stream's constellation completion. Reduced motion uses a static full-bar hold, without the pulse or floating +2.
 - Verification: 112 tests pass, including duplicate-online threshold preservation and ledger rebuild; build and secret scan pass. Checked the progress panel and completed-state hiding in Chrome at 1920×1080 with no page errors. A separate control-page check changed auto/manual settings and confirmed the current stream stayed at 3 while the next-stream setting changed. Real Twitch verification remains for the user's live test.
+
+## 2026-11-03 — Reconnect Twitch feedback
+
+- Decision: Reconnect explicitly reopens authorization and shows a short pressed state.
+- Implementation: authorization requests include Twitch's documented force_verify=true and a fresh CSRF state. Setup displays Opening Twitch with 160ms pressed feedback before navigation; returning via browser history clears the busy state. Modified clicks retain native link behavior.
+- Verification: targeted authorization, setup-page and overlay-server tests use fictional credentials and mocked environment loading. Callback tests use an ephemeral port to leave the running app untouched. No .env or real saved tokens accessed; live Twitch consent remains a user check.
