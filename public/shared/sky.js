@@ -90,8 +90,18 @@ export function skyInventory(fragments=[]) {
   return Object.fromEntries(SKY_NAMES.map(name=>[name,fragments.filter(item=>item.constellation===name).map(item=>item.fragment)]));
 }
 
-export function drawSkyPanel(ctx,fragments,x,y,w,h,enlarged=false) {
-  const inventory=skyInventory(fragments),recentProgress=[...fragments].reverse().find(item=>inventory[item.constellation].length>0&&inventory[item.constellation].length<6),current=recentProgress?.constellation;
+export function skyPanelModel(fragments=[]) {
+  const inventory=skyInventory(fragments),recentProgress=[...fragments].reverse().find(item=>inventory[item.constellation].length>0&&inventory[item.constellation].length<6),current=recentProgress?.constellation??null;
+  return {fragments,inventory,current,counts:Object.fromEntries(SKY_NAMES.map(name=>[name,inventory[name].length]))};
+}
+
+export function skyMomentTransition(fragments=[],settled=true) {
+  const before=skyPanelModel(fragments.slice(0,-1)),after=skyPanelModel(fragments);
+  return {before,after,rendered:settled?after:before};
+}
+
+export function drawSkyPanel(ctx,fragmentsOrModel,x,y,w,h,enlarged=false) {
+  const model=Array.isArray(fragmentsOrModel)?skyPanelModel(fragmentsOrModel):fragmentsOrModel,inventory=model.inventory,current=model.current;
   ctx.save();ctx.fillStyle="rgba(3,10,16,.48)";ctx.beginPath();ctx.roundRect(x,y,w,h,14);ctx.fill();
   const arcLeft=current?x+w*.56:x+w*.12,arcWidth=current?w*.36:w*.76,centerX=arcLeft+arcWidth/2,centerY=y+h*.70,radiusX=arcWidth/2,radiusY=h*.34;
   for(const [index,name] of SKY_NAMES.entries()){
@@ -107,11 +117,11 @@ export function drawSkyPanel(ctx,fragments,x,y,w,h,enlarged=false) {
 export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false) {
   const fragments=state?.skyFragments??[], recent=fragments.at(-1),age=recent?now-Date.parse(recent.earnedAt):Infinity;
   const finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionFrame=recent&&isComplete?completionMomentFrame(recent.earnedAt,now,moments,reducedMotion):null;
-  const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,displayFragments=holdRecent?fragments.slice(0,-1):fragments;
-  drawSkyPanel(ctx,displayFragments,x,y,panelW,panelH,enlarged);
+  const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,transition=skyMomentTransition(fragments,!holdRecent);
+  drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
   const panelOnly=isComplete&&(moments==="quiet"||reducedMotion);if(recent&&fragmentFrame?.active&&(!isComplete||panelOnly)){
-    const inventory=skyInventory(fragments),baseW=panelW*.48,baseH=panelH-(enlarged?38:28),scale=fragmentFrame.panelScale,cx=x+10+baseW/2,cy=y+8+baseH/2;
-    ctx.save();ctx.globalAlpha=Math.min(1,.76+fragmentFrame.pulse*.24);ctx.shadowColor="rgba(245,224,184,.32)";ctx.shadowBlur=fragmentFrame.pulse*9;drawSkyGlyph(ctx,recent.constellation,inventory[recent.constellation],cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:enlarged,background:false});ctx.restore();
+    const baseW=panelW*.48,baseH=panelH-(enlarged?38:28),scale=fragmentFrame.panelScale,cx=x+10+baseW/2,cy=y+8+baseH/2,collected=transition.after.inventory[recent.constellation];
+    ctx.save();ctx.globalAlpha=Math.min(1,.76+fragmentFrame.pulse*.24);ctx.shadowColor="rgba(245,224,184,.32)";ctx.shadowBlur=fragmentFrame.pulse*9;drawSkyGlyph(ctx,recent.constellation,collected,cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:enlarged,background:false});ctx.restore();
   }
 }
 

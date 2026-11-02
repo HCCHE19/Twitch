@@ -219,3 +219,9 @@
 **Decided:** Resolve a new lamp's permanent hue-safe slot before it becomes visible. Preserve the existing row order across state packets. If insertion or a density-tier recomputation changes existing targets, ease those lamps horizontally and in size for 300ms, keep the newcomer hidden while the gap opens, then start its drop directly above the final slot. A lamp's x-position at landing must equal its steady-state x-position, and established lamps may slide but never jump.
 
 **Action:** Added persistent row reconciliation, natural-slot-first hue insertion, frame-to-frame position/size interpolation, delayed arrival starts for gap opening, and tests for final-position landing, tier easing, forced insertion, and demo ordering. Changed the third moment-demo identity to a deterministic hue seed that lets Moments 1–3 remain left-to-right without weakening the colour rule.
+
+## 2026-11-02 — Panel state fidelity
+
+**Decided:** A sky moment may transition only between two real server states: the exact fragment array before the newest hash-chained event and the exact array after it. The panel, caption, and animated target must never calculate separate inventories or counts. After settling, the rendered count must equal the reducer state for every count from one through six.
+
+**Action:** Replaced the panel's parallel base/animation inventories with one shared transition model used by all render paths. Extracted demo moment events into a testable generator; fragment demo now proves it grants only Leo A, while completion demo proves it replays Leo A–E before F. Added state-fidelity tests for previous/current arrays and every settled fragment count.

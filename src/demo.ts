@@ -3,6 +3,7 @@ import { loadMomentLevel, loadOverlayLayout } from "./config.js";
 import { emptyState, reduceEnvelope } from "./presence.js";
 import { startOverlayServer } from "./overlay-server.js";
 import type { EventSubEnvelope } from "./types.js";
+import { momentDemo } from "./demo-events.js";
 
 const args = process.argv.slice(2);
 const speedIndex = args.indexOf("--speed");
@@ -45,19 +46,8 @@ function generatedDemo(count: number): EventSubEnvelope[] {
   return envelopes;
 }
 
-function momentDemo(kind: string): EventSubEnvelope[] {
-  const envelopes: EventSubEnvelope[]=[];let sequence=0;
-  const push=(type:string,event:Record<string,unknown>,second:number):void=>{envelopes.push({metadata:{message_id:`moment-${kind}-${sequence++}`,message_type:type.startsWith("lamplight.")?"internal":"notification",message_timestamp:new Date(Date.UTC(2026,10,2,0,0,second)).toISOString(),subscription_type:type},payload:{event}})};
-  if(kind==="complete")for(const [index,letter] of ["A","B","C","D","E"].entries())push("lamplight.sky.fragment",{stream_id:`prior-${letter}`,constellation:"Leo",fragment:letter,lit_user_ids:[]},0);
-  push("stream.online",{id:`moment-${kind}-stream`,started_at:new Date(Date.UTC(2026,10,2,0,0,0)).toISOString()},0);
-  const demoIds=["moment-viewer-1","moment-viewer-2","moment-viewer-4"];
-  for(let index=1;index<=3;index++)push("channel.chat.message",{chatter_user_id:demoIds[index-1],chatter_user_login:`moment_${index}`,chatter_user_name:`Moment ${index}`,message:{text:"!lamp",fragments:[{type:"text",text:"!lamp"}]}},index);
-  if(kind!=="ignite")push("lamplight.sky.fragment",{stream_id:`moment-${kind}-stream`,constellation:"Leo",fragment:kind==="complete"?"F":"A",lit_user_ids:demoIds},4);
-  return envelopes;
-}
-
 const envelopes = moment
-  ? momentDemo(moment)
+  ? momentDemo(moment as "ignite" | "fragment" | "complete")
   : lampCount !== undefined
   ? generatedDemo(lampCount)
   : (await readFile(file!, "utf8")).split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line) as EventSubEnvelope);
