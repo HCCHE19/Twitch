@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import type { DerivedState } from "./types.js";
-import type { OverlayLayout } from "./config.js";
+import type { MomentLevel, OverlayLayout } from "./config.js";
 
 const MIME: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -21,11 +21,11 @@ export interface OverlayServer {
 
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
 
-export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false): Promise<OverlayServer> {
+export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN = 10, showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal"): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
-  const packet = (state: DerivedState): string => JSON.stringify({ type: "state", state, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, preferences });
+  const packet = (state: DerivedState): string => JSON.stringify({ type: "state", state, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, moments, preferences });
   const sendState = (): void => { const message = packet(getState()); for (const client of sockets.clients) if (client.readyState === WebSocket.OPEN) client.send(message); };
   const server = createServer(async (request, response) => {
     const requestPath = new URL(request.url ?? "/", "http://localhost").pathname;

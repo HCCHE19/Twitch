@@ -57,6 +57,12 @@ Both additions are isolated and disabled by default. Set `SKY=true` to let each 
 
 Set `WIND=true` to make five different viewers flaring within ten seconds lean every flame together for about one second. Wind has a ten-second global cooldown and adds no chat or ledger output.
 
+### Moments without taking over the stream
+
+Lamplight keeps its arrival and collection moments inside the lamp band and corner panel by design. A newly lit lamp drops into the sill, lands with a brief wick bloom and sends one light ripple past its neighbours. A newly earned sky fragment produces a restrained sweep along the band and settles inside the panel. Completing all six regions of a constellation lights its stars in sequence in a fixed area above the row, flares the band once, and returns the drawing to the panel; it never uses frame-edge flashes or strobing.
+
+Set `MOMENTS=quiet`, `normal`, or `big` in `.env`, then restart Lamplight. `normal` is the default. `quiet` keeps only the arrival ripple and panel effects, with no constellation drawn above the row. `big` is intended for demos and allows a completion moment to use up to half the frame height; `normal` is capped at one third. Reduced-motion preferences replace movement with brief, low-intensity emphasis.
+
 ### Optional red threads
 
 Red threads are isolated behind `THREADS=false` by default. Set `THREADS=true` and restart to enable them. An already-lit viewer may send `!tie Display Name` once per stream. The target must be another lamp lit tonight; names match case-insensitively by exact name first, then unique prefix. The one-way request is a faint dashed line and is not recorded. If the target sends `!tie` back in the same stream, Lamplight records a mutual thread and draws a thin solid red line. Each lamp keeps its oldest three mutual threads. In later streams, a thread returns when both lamps are lit; while only one is present it hangs from that lamp with a small knot, and both lamps flare when reunited.
@@ -79,6 +85,16 @@ Replay Twitch-shaped fixtures through the production handlers at an adjustable s
 npm run demo -- test/fixtures/demo-events.jsonl --speed 2
 npm run demo -- --lamps 30 --speed 1000
 ```
+
+Preview each occasion moment separately. Each command waits ten seconds after starting its server, giving you time to open the printed overlay URL. Stop it with `Control+C` before running the next command.
+
+```bash
+npm run demo -- --moment ignite --port 8790
+npm run demo -- --moment fragment --port 8790
+npm run demo -- --moment complete --port 8790
+```
+
+Use `--delay 20` if you want a longer setup window. The fragment and completion demos enable their synthetic sky state only inside the demo server; they do not alter the real ledger.
 
 The overlay displays `DEMO REPLAY`; demo output must not be presented as a real Twitch test.
 

@@ -7,6 +7,7 @@ export interface Config {
 }
 
 export type OverlayLayout = "bottom" | "top";
+export type MomentLevel = "quiet" | "normal" | "big";
 
 function parseEnvFile(source: string): Record<string, string> {
   const values: Record<string, string> = {};
@@ -95,6 +96,15 @@ async function loadBooleanFlag(key: string, env = process.env): Promise<boolean>
 
 export const loadSkyEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("SKY", env);
 export const loadWindEnabled = (env = process.env): Promise<boolean> => loadBooleanFlag("WIND", env);
+
+export async function loadMomentLevel(env = process.env): Promise<MomentLevel> {
+  let fileValues: Record<string, string> = {};
+  try { fileValues = parseEnvFile(await readFile(".env", "utf8")); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+  const value = (env.MOMENTS?.trim() || fileValues.MOMENTS?.trim() || "normal").toLowerCase();
+  if (value !== "quiet" && value !== "normal" && value !== "big") throw new Error("MOMENTS must be quiet, normal, or big");
+  return value;
+}
 
 export async function loadIgnoredUsers(path = "config/ignored-users.json"): Promise<string[]> {
   const values = JSON.parse(await readFile(path, "utf8")) as unknown;

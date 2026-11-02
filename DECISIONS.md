@@ -199,3 +199,11 @@
 **Decided:** Untouched constellations show low-alpha stars and no lines. In-progress constellations show collected regions as rounded 1.5px pale warm-white lines with soft glow and missing regions as visible cool dotted lines. Complete constellations add a subtle whole-shape halo and warmer finish. Replace the unreadable twelve tiny drawings in the overlay panel with twelve status stars in an arc; only the current incomplete constellation gets a mini drawing and caption.
 
 **Action:** Reworked only the shared canvas renderer and preview composition. Receipt rendering now includes the same seeded sky field, the overlay panel uses the status-star arc, and `/sky-preview/` retains receipt-size, panel, and Leo-state sections.
+
+## 2026-11-02 — Band-contained occasion moments
+
+**Decided:** Add no product state or viewer action. Render three moments exclusively from existing lamp and fragment timestamps. Ignite completes within one second: drop, small landing bounce, one wick bloom, and one sill ripple with a brief neighbouring-flame lean. Fragment earning stays entirely in the band/panel: one left-to-right underlight sweep, a 1.5× panel-region settle, and one pulse. A sixth fragment may use a fixed completion area above the row, capped at one third of frame height in normal mode and one half in big mode; stars reveal once along the drawing, the band flares once, and the drawing shrinks into the panel.
+
+**Decided:** `MOMENTS=normal` is the validated default; `quiet` retains only the ignite ripple and panel effects, and `big` enlarges only the rare completion area. Never use frame-edge flashes or repeated flashes above two per second. Reduced-motion mode removes spatial movement in favour of brief low-intensity emphasis. Keep per-frame work bounded for the existing 60-lamp render cap.
+
+**Action:** Added pure animation timelines, renderer integration, shared panel settling, arrival/ripple/neighbor effects, completion reveal/shrink, reduced-motion fallbacks, configuration validation, and tests for timing, level caps, quiet behavior, and defaults. Added `--moment ignite|fragment|complete` demo replays with current-time event shifting and a configurable start delay.

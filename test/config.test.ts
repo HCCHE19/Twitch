@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadShowNames, loadThresholdN, loadThreadsEnabled } from "../src/config.js";
+import { loadMomentLevel, loadShowNames, loadThresholdN, loadThreadsEnabled } from "../src/config.js";
 
 describe("overlay feature configuration", () => {
   it("parses threshold and name visibility overrides", async () => {
@@ -8,5 +8,9 @@ describe("overlay feature configuration", () => {
     await expect(loadShowNames({ SHOW_NAMES: "maybe" })).rejects.toThrow("SHOW_NAMES");
     await expect(loadThreadsEnabled({ THREADS: "true" })).resolves.toBe(true);
     await expect(loadThreadsEnabled({ THREADS: "false" })).resolves.toBe(false);
+    await expect(loadMomentLevel({ MOMENTS: "quiet" })).resolves.toBe("quiet");
+    await expect(loadMomentLevel({ MOMENTS: "big" })).resolves.toBe("big");
+    await expect(loadMomentLevel({})).resolves.toBe("normal");
+    await expect(loadMomentLevel({ MOMENTS: "loud" })).rejects.toThrow("MOMENTS");
   });
 });

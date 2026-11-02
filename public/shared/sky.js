@@ -3,6 +3,7 @@
 // Magnitude tiers use the matching d3-celestial star catalogue entries:
 // https://github.com/ofrohn/d3-celestial/blob/master/data/stars.6.json
 // Lamplight normalizes those real positions and generates its own six-region line style.
+import { completionMomentFrame, fragmentMomentFrame } from "./moments.js";
 export const SKY_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpius","Sagittarius","Capricornus","Aquarius","Pisces"];
 const LETTERS = ["A","B","C","D","E","F"];
 const RAW = {
@@ -60,17 +61,19 @@ function magnitudeTiers(name) {
 }
 
 export function drawSkyGlyph(ctx,name,collected,x,y,w,h,options={}) {
-  const points=cardPoints(name,x,y,w,h),owned=new Set(collected),complete=owned.size===6,untouched=owned.size===0,large=options.large!==false;
+  const points=cardPoints(name,x,y,w,h),owned=new Set(collected),complete=owned.size===6,untouched=owned.size===0,large=options.large!==false,reveal=options.revealProgress??1;
   if(options.background!==false)drawBackgroundStars(ctx,name,x,y,w,h);
   ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=large?1.5:.9;
   if(complete){const halo=ctx.createRadialGradient(x+w/2,y+h/2,0,x+w/2,y+h/2,Math.max(w,h)*.48);halo.addColorStop(0,"rgba(218,190,139,.055)");halo.addColorStop(.55,"rgba(132,190,193,.035)");halo.addColorStop(1,"rgba(80,130,140,0)");ctx.fillStyle=halo;ctx.fillRect(x,y,w,h)}
   if(!untouched)for(let index=0;index<6;index++){
+    if(index/6>reveal)continue;
     const a=routePoint(points,index/6),b=routePoint(points,(index+1)/6),has=owned.has(LETTERS[index]);ctx.setLineDash(has?[]:(large?[2,5]:[1,3]));
     ctx.strokeStyle=has?`rgba(246,232,207,${complete?.78:.68})`:`rgba(147,195,198,.25)`;ctx.shadowColor=has?"rgba(239,218,177,.24)":"transparent";ctx.shadowBlur=has?(large?5:2):0;
     ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
   }
   ctx.setLineDash([]);ctx.shadowBlur=0;const tiers=magnitudeTiers(name);
   for(const [index,[px,py]] of points.entries()){
+    if(index/Math.max(1,points.length-1)>reveal)continue;
     const tier=tiers[index],alpha=untouched?.28:complete?.92:.78;
     if(tier==="bright"){
       const glow=ctx.createRadialGradient(px,py,0,px,py,large?7:3);glow.addColorStop(0,`rgba(247,235,211,${alpha*.48})`);glow.addColorStop(.25,`rgba(220,236,234,${alpha*.22})`);glow.addColorStop(1,"rgba(190,220,222,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.arc(px,py,large?7:3,0,Math.PI*2);ctx.fill();
@@ -101,11 +104,15 @@ export function drawSkyPanel(ctx,fragments,x,y,w,h,enlarged=false) {
   ctx.restore();
 }
 
-export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom") {
+export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false) {
   const fragments=state?.skyFragments??[], recent=fragments.at(-1),age=recent?now-Date.parse(recent.earnedAt):Infinity;
-  const animating=age>=0&&age<2000,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,displayFragments=animating?fragments.slice(0,-1):fragments;
+  const finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionFrame=recent&&isComplete?completionMomentFrame(recent.earnedAt,now,moments,reducedMotion):null;
+  const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,displayFragments=holdRecent?fragments.slice(0,-1):fragments;
   drawSkyPanel(ctx,displayFragments,x,y,panelW,panelH,enlarged);
-  if(recent&&animating){const finalCount=fragments.filter(item=>item.constellation===recent.constellation).length,complete=finalCount===6,t=Math.max(0,Math.min(1,(age-1200)/800)),ease=t*t*(3-2*t),sx=width*.22,sy=layout==="top"?height*.18:height*.76,sw=width*.56,sh=Math.min(120,height*.12),tx=x+18,ty=y+12,tw=panelW*.44,th=panelH*.62,lerp=(a,b)=>a+(b-a)*ease;ctx.save();ctx.globalAlpha=1-age/2400;drawSkyGlyph(ctx,recent.constellation,complete?LETTERS:[recent.fragment],lerp(sx,tx),lerp(sy,ty),lerp(sw,tw),lerp(sh,th),{large:true,background:false});ctx.restore()}
+  const panelOnly=isComplete&&(moments==="quiet"||reducedMotion);if(recent&&fragmentFrame?.active&&(!isComplete||panelOnly)){
+    const inventory=skyInventory(fragments),baseW=panelW*.48,baseH=panelH-(enlarged?38:28),scale=fragmentFrame.panelScale,cx=x+10+baseW/2,cy=y+8+baseH/2;
+    ctx.save();ctx.globalAlpha=Math.min(1,.76+fragmentFrame.pulse*.24);ctx.shadowColor="rgba(245,224,184,.32)";ctx.shadowBlur=fragmentFrame.pulse*9;drawSkyGlyph(ctx,recent.constellation,inventory[recent.constellation],cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:enlarged,background:false});ctx.restore();
+  }
 }
 
 export function drawReceiptSky(canvas,collected) {

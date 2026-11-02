@@ -9,8 +9,9 @@ import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
 import { flareInteractions } from "/shared/flare-interactions.js";
 import { preferThreadAdjacency, threadVisuals } from "/shared/threads.js";
-import { drawSkyOverlay } from "/shared/sky.js";
+import { drawSkyGlyph, drawSkyOverlay } from "/shared/sky.js";
 import { updateWindTracker, windLean } from "/shared/wind.js";
+import { completionMomentFrame, fragmentMomentFrame, igniteFrame } from "/shared/moments.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -26,6 +27,7 @@ let showNames = true;
 let threadsEnabled = false;
 let skyEnabled = false;
 let windEnabled = false;
+let momentLevel = "normal";
 let windTracker = { streamId: null, startedAt: null, lastTriggeredAt: null, signature: "", direction: 1 };
 let waveTracker = { streamId: null, fired: false, startedAt: null };
 const previewBackground = new URLSearchParams(location.search).get("bg") === "1";
@@ -41,6 +43,41 @@ function layout(items) {
   return rowLayout(items, Object.keys(state?.lamps ?? {}).length, innerWidth, innerHeight, selectedLayout, preferences.compact, (lamp) => generateLamp(lamp.userId).verticalOffset);
 }
 
+function bandClip() {
+  context.beginPath();
+  if (selectedLayout === "top") context.rect(0, 0, innerWidth, innerHeight * .25);
+  else context.rect(0, innerHeight * .72, innerWidth, innerHeight * .28);
+  context.clip();
+}
+
+function drawBandSweep(frame, baseline) {
+  if (!frame.active || frame.sweep <= 0 || reducedMotion.matches) return;
+  const x = frame.sweep * innerWidth, width = Math.max(120, innerWidth * .10);
+  context.save(); bandClip();
+  const sweep = context.createLinearGradient(x - width, 0, x + width, 0);
+  sweep.addColorStop(0, "rgba(246,232,207,0)"); sweep.addColorStop(.5, "rgba(246,232,207,.13)"); sweep.addColorStop(1, "rgba(246,232,207,0)");
+  context.fillStyle = sweep; context.fillRect(x - width, baseline - 28, width * 2, 56); context.restore();
+}
+
+function drawCompletionMoment(fragment, frame, baseline) {
+  if (!fragment || !frame.active || frame.maxHeight <= 0) return;
+  const fullHeight = innerHeight * frame.maxHeight, fullWidth = Math.min(innerWidth * .64, fullHeight * 2.4);
+  const startX = (innerWidth - fullWidth) / 2, startY = selectedLayout === "top" ? 0 : baseline - fullHeight;
+  const panelX = innerWidth - 115, panelY = 52, targetW = 72, targetH = 42, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
+  const lerp = (from, to) => from + (to - from) * ease;
+  context.save(); context.beginPath();
+  if (selectedLayout === "top") context.rect(0, 0, innerWidth, Math.max(baseline + fullHeight, fullHeight));
+  else context.rect(0, baseline - fullHeight, innerWidth, fullHeight + innerHeight * .12);
+  context.clip();
+  drawSkyGlyph(context, fragment.constellation, ["A", "B", "C", "D", "E", "F"], lerp(startX, panelX), lerp(startY, panelY), lerp(fullWidth, targetW), lerp(fullHeight, targetH), { large: true, background: false, revealProgress: frame.reveal });
+  if (frame.flare > 0) {
+    const glow = context.createLinearGradient(0, baseline - 30, 0, baseline + 30);
+    glow.addColorStop(0, "rgba(246,232,207,0)"); glow.addColorStop(.5, `rgba(246,232,207,${frame.flare * .18})`); glow.addColorStop(1, "rgba(246,232,207,0)");
+    context.fillStyle = glow; context.fillRect(0, baseline - 30, innerWidth, 60);
+  }
+  context.restore();
+}
+
 function render(time) {
   context.clearRect(0, 0, innerWidth, innerHeight);
   if (previewBackground) {
@@ -52,7 +89,7 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
-  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, Date.now(), selectedLayout);
+  if (skyEnabled && state) drawSkyOverlay(context, state, innerWidth, innerHeight, opening.active, Date.now(), selectedLayout, momentLevel, reducedMotion.matches);
   windTracker = updateWindTracker(windTracker, state?.currentStream?.id, state?.flareAtByUserId ?? {}, Date.now(), windEnabled);
   const sharedWindLean = reducedMotion.matches ? 0 : windLean(windTracker, Date.now());
   waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
@@ -62,6 +99,12 @@ function render(time) {
     sill.addColorStop(0, "rgba(255,190,110,0)"); sill.addColorStop(.48, "rgba(255,190,110,.08)"); sill.addColorStop(.58, "rgba(255,190,110,.055)"); sill.addColorStop(1, "rgba(255,190,110,0)");
     context.fillStyle = sill; context.fillRect(0, baseline - 20, innerWidth, 40);
   }
+  const latestFragment = skyEnabled ? state?.skyFragments?.at(-1) : null;
+  const fragmentFrame = latestFragment ? fragmentMomentFrame(latestFragment.earnedAt, Date.now(), reducedMotion.matches) : null;
+  const fragmentCount = latestFragment ? state.skyFragments.filter((item) => item.constellation === latestFragment.constellation).length : 0;
+  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(latestFragment.earnedAt, Date.now(), momentLevel, reducedMotion.matches) : null;
+  if (fragmentFrame) drawBandSweep(fragmentFrame, baseline);
+  if (latestFragment && completionFrame) drawCompletionMoment(latestFragment, completionFrame, baseline);
   if (state) {
     if (opening.active) {
       context.fillStyle = "rgba(246,232,207,.9)";
@@ -105,6 +148,14 @@ function render(time) {
       context.fillStyle = "rgba(204,68,72,.62)"; context.beginPath(); context.arc(endX, endY, Math.max(2, line.from.size * .022), 0, Math.PI * 2); context.fill();
     }
     const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, Date.now());
+    const igniteFrames = new Map(laidOut.flatMap((item) => item.lamp ? [[item.lamp.userId, igniteFrame(item.lamp.lastLitAt, Date.now(), reducedMotion.matches, momentLevel)]] : []));
+    const arrivalNudges = {};
+    for (const [index, item] of laidOut.entries()) {
+      if (!item.lamp) continue; const arrival = igniteFrames.get(item.lamp.userId); if (!arrival?.nudge) continue;
+      const left = laidOut[index - 1]?.lamp; const right = laidOut[index + 1]?.lamp;
+      if (left) arrivalNudges[left.userId] = (arrivalNudges[left.userId] ?? 0) + arrival.nudge * .15;
+      if (right) arrivalNudges[right.userId] = (arrivalNudges[right.userId] ?? 0) - arrival.nudge * .15;
+    }
     if (interactions.spark) {
       const from = laidOut.find((item) => item.lamp?.userId === interactions.spark.fromUserId);
       const to = laidOut.find((item) => item.lamp?.userId === interactions.spark.toUserId);
@@ -127,9 +178,18 @@ function render(time) {
         const ripple = interactions.ripples[item.lamp.userId] ?? 0;
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
         const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
-        drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean
+        const ignite = igniteFrames.get(item.lamp.userId); const renderY = item.y + (ignite?.yOffset ?? 0) * renderedSize;
+        if (ignite?.ripple > 0 && !reducedMotion.matches) {
+          context.save(); bandClip(); context.strokeStyle = `rgba(246,211,151,${(1 - ignite.ripple) * .28})`; context.lineWidth = 1.2;
+          context.beginPath(); context.ellipse(item.x, baseline, renderedSize * (.25 + ignite.ripple * 1.25), 5 + ignite.ripple * 9, 0, 0, Math.PI * 2); context.stroke(); context.restore();
+        }
+        drawLamp(context, item.lamp.userId, item.x, renderY, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2 + (ignite?.bloom ?? 0) * .35), glowAlpha, extraTilt: welcome?.tilt ?? 0, flameLean: sharedWindLean + (arrivalNudges[item.lamp.userId] ?? 0)
         });
+        if (ignite?.bloom > 0) {
+          const wickY = renderY - renderedSize * .47, bloom = context.createRadialGradient(item.x, wickY, 0, item.x, wickY, renderedSize * .42);
+          bloom.addColorStop(0, `rgba(255,242,205,${ignite.bloom * .42})`); bloom.addColorStop(.3, `rgba(245,195,105,${ignite.bloom * .16})`); bloom.addColorStop(1, "rgba(245,195,105,0)");context.fillStyle=bloom;context.beginPath();context.arc(item.x,wickY,renderedSize*.42,0,Math.PI*2);context.fill();
+        }
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);
         context.font = `600 ${baseLabelSize}px ${LABEL_FONT_FALLBACK}`;
@@ -137,7 +197,7 @@ function render(time) {
         const labelSize = fitted.fontSize;
         context.font = `600 ${labelSize}px ${LABEL_FONT_FALLBACK}`;
         context.textAlign = "center";
-        const labelY = item.y + item.size * .27;
+        const labelY = renderY + item.size * .27;
         const labelWidth = fitted.plateWidth;
         context.fillStyle = `rgba(4, 9, 12, ${Math.max(.58, opacity * .74)})`;
         context.beginPath(); context.roundRect(item.x - labelWidth / 2, labelY - labelSize * .88, labelWidth, labelSize * 1.45, labelSize * .7); context.fill();
@@ -174,6 +234,7 @@ function connect() {
       threadsEnabled = packet.threadsEnabled === true;
       skyEnabled = packet.skyEnabled === true;
       windEnabled = packet.windEnabled === true;
+      momentLevel = ["quiet", "normal", "big"].includes(packet.moments) ? packet.moments : "normal";
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
