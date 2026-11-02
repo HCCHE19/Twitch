@@ -135,3 +135,9 @@
 **Decided:** For two seconds after a first-ever lamp lights, only its immediate rendered neighbours tilt four degrees toward it and receive a modest brightness/glow lift, then settle. It is overlay-only, selects the newest simultaneous newcomer, and is suppressed by reduced-motion mode.
 
 **Action:** Added deterministic neighbour selection, directional effects, renderer tilt support, overlay integration, and adjacency/duration tests.
+
+## 2026-11-02 — Flare ripple and spark
+
+**Decided:** The latest flare gives its immediate rendered neighbours a one-third-strength pulse beginning 200ms later and lasting 600ms. If the two most recent distinct viewers flare within five seconds, draw a thin spark between their current lamp positions for 400ms. Both are overlay-only, reuse existing flare timestamps, and are suppressed by reduced-motion mode.
+
+**Action:** Added deterministic ripple/spark derivation, overlay drawing, and tests for adjacency, delay, relative strength, distinct-viewer window, and duration.

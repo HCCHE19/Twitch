@@ -7,6 +7,7 @@ import { rollCallFrame } from "/shared/roll-call.js";
 import { updateWaveTracker, waveIntensity } from "/shared/wave.js";
 import { fitNamePlate, LABEL_FONT_FALLBACK } from "/shared/labels.js";
 import { neighbourWelcome } from "/shared/neighbours.js";
+import { flareInteractions } from "/shared/flare-interactions.js";
 
 const canvas = document.querySelector("#lamps");
 const context = canvas.getContext("2d");
@@ -76,7 +77,17 @@ function render(time) {
     const glowScale = Math.max(.32, Math.sqrt(6 / Math.max(6, visible.length)));
     const glowAlpha = Math.min(1, 6 / Math.max(6, visible.length));
     const welcomeEffects = neighbourWelcome(visible, state.currentStream, Date.now());
-    for (const [itemIndex, item] of layout(visible).entries()) {
+    const laidOut = layout(visible);
+    const interactions = reducedMotion.matches ? { ripples: {}, spark: null } : flareInteractions(laidOut, state.flareAtByUserId, Date.now());
+    if (interactions.spark) {
+      const from = laidOut.find((item) => item.lamp?.userId === interactions.spark.fromUserId);
+      const to = laidOut.find((item) => item.lamp?.userId === interactions.spark.toUserId);
+      if (from && to) {
+        context.strokeStyle = `rgba(255,170,128,${interactions.spark.intensity * .42})`; context.lineWidth = 1.2;
+        context.beginPath(); context.moveTo(from.x, from.y - from.size * .42); context.lineTo(to.x, to.y - to.size * .42); context.stroke();
+      }
+    }
+    for (const [itemIndex, item] of laidOut.entries()) {
       if (item.lamp) {
         if (closing.kind === "lamps" && !visibleClosingIds.has(item.lamp.userId)) continue;
         const bright = closing.kind === "lamps" || state.currentStream?.litUserIds.includes(item.lamp.userId);
@@ -86,10 +97,11 @@ function render(time) {
         const flare = flarePulse(state.flareAtByUserId?.[item.lamp.userId], Date.now(), reducedMotion.matches);
         const wave = reducedMotion.matches ? 0 : waveIntensity(waveTracker.startedAt, itemIndex, Date.now());
         const welcome = reducedMotion.matches ? undefined : welcomeEffects[item.lamp.userId];
+        const ripple = interactions.ripples[item.lamp.userId] ?? 0;
         const isRollCallCurrent = rollCall.active && rollCall.currentUserId === item.lamp.userId;
-        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
+        const renderedSize = isRollCallCurrent ? baseRenderedSize * 1.25 : Math.min(baseRenderedSize * flare.scale * (1 + wave * .08 + ripple * .08), item.tier === 0 ? Number.POSITIVE_INFINITY : item.collisionCap);
         drawLamp(context, item.lamp.userId, item.x, item.y, renderedSize, Math.min(1, opacity + (welcome?.intensity ?? 0) * .28), reducedMotion.matches ? 0 : time, {
-          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0
+          detail: item.tier === 2 ? "essential" : "full", glowScale: glowScale * (1 + flare.intensity * .35 + wave * .25 + (welcome?.intensity ?? 0) * .2 + ripple * .2), glowAlpha, extraTilt: welcome?.tilt ?? 0
         });
         if (!showNames || (item.tier !== 0 && !isRollCallCurrent)) continue;
         const baseLabelSize = isRollCallCurrent ? Math.max(16, item.size * .16) : Math.max(12, item.size * .105);

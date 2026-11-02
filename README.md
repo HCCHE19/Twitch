@@ -49,6 +49,7 @@ Set `THRESHOLD_N` in `.env` (default `10`) to choose when the once-per-stream le
 Set `SHOW_NAMES=false` to hide every name plate and return greeting on the overlay; receipt names are unaffected.
 Name plates support Japanese and Chinese display names through system-font fallbacks and bounded text fitting.
 When a lamp lights for the first time ever, its rendered neighbours briefly tilt and brighten toward it in welcome.
+Flares send a delayed, fainter pulse to adjacent lamps; two different viewers flaring within five seconds briefly draw a thin spark between them.
 
 If the offline event never arrives, run `npm run finalize`. Verify a receipt with:
 
