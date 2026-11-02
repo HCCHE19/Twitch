@@ -4,7 +4,7 @@
 
 Lamplight gives a silent Twitch viewer one gentle action: send `!lamp`, `!lurk`, or one emote by itself. Their persistent, procedurally generated lamp brightens on the OBS overlay. When the stream ends, Lamplight seals a tamper-evident Presence Receipt from its EventSub ledger. It is attendance, not a leaderboard or recap.
 
-All lamp artwork and motion are procedurally generated in this repo; the only bundled asset is the Space Grotesk font under the OFL.
+All lamp and sky artwork and motion are generated in code; the only bundled assets are the Space Grotesk font under the OFL and the constellation star positions from the d3-celestial dataset under its BSD licence, with the licence text included in this repo.
 
 ## Requirements
 
@@ -105,3 +105,8 @@ Real `data/` and `.env` are gitignored. Private receipt JSON may contain Twitch 
 The committed [fictional sample receipt](public/receipt/sample.html) contains names only. It is a design sample, not evidence from a real stream.
 
 Run `npm run export` to rebuild the self-contained GitHub Pages version in `docs/` from that sample and the production lamp renderer.
+
+## Credits and licences
+
+- **Space Grotesk:** bundled label font, licensed under the SIL Open Font License. The licence text is included at [`public/fonts/OFL.txt`](public/fonts/OFL.txt).
+- **d3-celestial:** constellation star-position data by Olaf Frohn, used under the BSD 3-Clause licence. Lamplight uses the numeric positions as source data and generates its own sky regions, line styling, glyphs, and motion. The source dataset is [d3-celestial `constellations.lines.json`](https://github.com/ofrohn/d3-celestial/blob/master/data/constellations.lines.json), and its licence text is included at [`LICENSES/d3-celestial-BSD-3-Clause.txt`](LICENSES/d3-celestial-BSD-3-Clause.txt).
