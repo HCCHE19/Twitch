@@ -121,9 +121,9 @@ export function drawSkyPanel(ctx,fragmentsOrModel,x,y,w,h,enlarged=false) {
   ctx.restore();
 }
 
-export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null) {
+export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250) {
   const fragments=state?.skyFragments??[], recent=fragments.at(-1),age=recent?now-Date.parse(recent.earnedAt):Infinity;
-  const finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionFrame=recent&&isComplete?completionMomentFrame(recent.earnedAt,now,moments,reducedMotion):null;
+  const finalCount=recent?fragments.filter(item=>item.constellation===recent.constellation).length:0,isComplete=finalCount===6,fragmentFrame=recent?fragmentMomentFrame(recent.earnedAt,now,reducedMotion):null,completionAt=recent?new Date(Date.parse(recent.earnedAt)+completionDelay).toISOString():null,completionFrame=recent&&isComplete?completionMomentFrame(completionAt,now,moments,reducedMotion):null;
   const holdRecent=isComplete&&moments!=="quiet"&&!reducedMotion?!completionFrame?.settled:!fragmentFrame?.settled,enlarged=Boolean(openingActive&&recent),panelW=enlarged?320:230,panelH=enlarged?170:100,x=width-panelW-22,y=18,transition=skyMomentTransition(fragments,!holdRecent,displayLock?.constellation??null);
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
   if(completionFrame?.crossfade>0&&!completionFrame.settled){ctx.save();ctx.globalAlpha=completionFrame.crossfade;drawSkyPanel(ctx,transition.after,x,y,panelW,panelH,enlarged);ctx.restore()}

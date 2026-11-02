@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { loadMomentLevel, loadOverlayLayout } from "./config.js";
-import { emptyState, reduceEnvelope } from "./presence.js";
+import { createFlareEnvelope, emptyState, reduceEnvelope } from "./presence.js";
 import { startOverlayServer } from "./overlay-server.js";
 import type { EventSubEnvelope } from "./types.js";
-import { momentDemo } from "./demo-events.js";
+import { momentDemo, nightDemo } from "./demo-events.js";
+import { applyThreadCommand, applyThreadReunion } from "./threads.js";
+import { applyPromiseCommand } from "./promises.js";
 
 const args = process.argv.slice(2);
 const speedIndex = args.indexOf("--speed");
@@ -18,8 +20,8 @@ const delayIndex = args.indexOf("--delay");
 const delaySeconds = delayIndex >= 0 ? Number(args[delayIndex + 1]) : moment ? 10 : 0;
 const valueIndexes = new Set([speedIndex + 1, lampsIndex + 1, portIndex + 1, momentIndex + 1, delayIndex + 1].filter((index) => index > 0));
 const file = args.find((arg, index) => !arg.startsWith("--") && !valueIndexes.has(index));
-if ((!file && lampCount === undefined && !moment) || (moment && !["ignite", "fragment", "complete"].includes(moment)) || !Number.isFinite(speed) || speed <= 0 || !Number.isFinite(delaySeconds) || delaySeconds < 0 || delaySeconds > 60 || !Number.isInteger(port) || port < 1 || port > 65535 || (lampCount !== undefined && (!Number.isInteger(lampCount) || lampCount < 1))) {
-  throw new Error("Usage: npm run demo -- [events.jsonl | --lamps 5|30|200 | --moment ignite|fragment|complete] --speed 1 [--delay 10] [--port 8787]");
+if ((!file && lampCount === undefined && !moment) || (moment && !["ignite", "fragment", "complete", "night"].includes(moment)) || !Number.isFinite(speed) || speed <= 0 || !Number.isFinite(delaySeconds) || delaySeconds < 0 || delaySeconds > 60 || !Number.isInteger(port) || port < 1 || port > 65535 || (lampCount !== undefined && (!Number.isInteger(lampCount) || lampCount < 1))) {
+  throw new Error("Usage: npm run demo -- [events.jsonl | --lamps 5|30|200 | --moment ignite|fragment|complete|night] --speed 1 [--delay 10] [--port 8787]");
 }
 
 function generatedDemo(count: number): EventSubEnvelope[] {
@@ -47,14 +49,15 @@ function generatedDemo(count: number): EventSubEnvelope[] {
 }
 
 const envelopes = moment
-  ? momentDemo(moment as "ignite" | "fragment" | "complete")
+  ? moment === "night" ? nightDemo() : momentDemo(moment as "ignite" | "fragment" | "complete")
   : lampCount !== undefined
   ? generatedDemo(lampCount)
   : (await readFile(file!, "utf8")).split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line) as EventSubEnvelope);
 const state = emptyState(true);
 const layout = await loadOverlayLayout();
 const moments = await loadMomentLevel();
-const overlay = await startOverlayServer(() => state, port, layout, 10, true, false, moment === "fragment" || moment === "complete", false, moments);
+const night = moment === "night";
+const overlay = await startOverlayServer(() => state, port, layout, night ? 3 : 10, true, night, night || moment === "fragment" || moment === "complete", night, night ? "normal" : moments, undefined, true);
 console.log("[demo] DEMO REPLAY");
 console.log(`[demo] overlay: http://localhost:${port}/overlay/ (${layout})`);
 if(delaySeconds>0){console.log(`[demo] replay starts in ${delaySeconds} seconds`);await new Promise((resolve)=>setTimeout(resolve,delaySeconds*1000))}
@@ -64,11 +67,21 @@ const replayStart = Date.now();
 for (const envelope of envelopes) {
   const currentTime = Date.parse(envelope.metadata.message_timestamp);
   if (previousTime !== undefined && Number.isFinite(currentTime)) {
-    const delay = Math.min(3_000, Math.max(0, currentTime - previousTime) / speed);
+    const delay = Math.min(night ? 10_000 : 3_000, Math.max(0, currentTime - previousTime) / speed);
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
   const replayEnvelope: EventSubEnvelope = { ...envelope, metadata: { ...envelope.metadata, message_timestamp: new Date(replayStart + (currentTime - sourceStart) / speed).toISOString() } };
+  const flare = night ? createFlareEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" }) : null;
+  const before = new Set(state.currentStream?.litUserIds ?? []);
   reduceEnvelope(state, replayEnvelope, { broadcasterLogin: "demo_broadcaster" });
+  if (night && replayEnvelope.metadata.subscription_type === "channel.chat.message" && state.currentStream) {
+    const newlyLit = state.currentStream.litUserIds.find((userId) => !before.has(userId));
+    if (newlyLit) applyThreadReunion(state, newlyLit, replayEnvelope.metadata.message_timestamp);
+    const promise = applyPromiseCommand(state, replayEnvelope, { enabled: true, broadcasterLogin: "demo_broadcaster" });
+    if (promise) reduceEnvelope(state, promise, { broadcasterLogin: "demo_broadcaster" });
+    for (const thread of applyThreadCommand(state, replayEnvelope, { enabled: true, broadcasterLogin: "demo_broadcaster" })) reduceEnvelope(state, thread, { broadcasterLogin: "demo_broadcaster" });
+  }
+  if (flare) reduceEnvelope(state, flare, { broadcasterLogin: "demo_broadcaster" });
   overlay.broadcast(state);
   console.log(`[demo] ${envelope.metadata.subscription_type ?? envelope.metadata.message_type}`);
   previousTime = currentTime;

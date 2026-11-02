@@ -48,6 +48,14 @@ npm run demo -- --moment complete --port 8790
 
 Use `--delay 20` if you want a longer setup window. The fragment and completion demos enable their synthetic sky state only inside the demo server; they do not alter the real ledger.
 
+The full-night replay is about four minutes and enables Sky, Threads, Wind, Promises, names, threshold 3, and normal moments:
+
+```bash
+npm run demo -- --moment night --port 8790
+```
+
+When events overlap, ignite always plays immediately. Fragment and constellation moments play in order—fragment first, completion second—and none are dropped; the corner panel advances only with its own moment. Flares and closing continue underneath without interrupting that queue.
+
 The overlay displays `DEMO REPLAY`; demo output must not be presented as a real Twitch test.
 
 ```bash

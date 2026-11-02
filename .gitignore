@@ -7,3 +7,4 @@ receipts/*
 !receipts/.gitkeep
 .DS_Store
 coverage/
+tmp/

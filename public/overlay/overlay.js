@@ -110,7 +110,8 @@ function render(time) {
   const latestFragment = skyEnabled ? state?.skyFragments?.at(-1) : null;
   const fragmentFrame = latestFragment ? fragmentMomentFrame(latestFragment.earnedAt, renderNow, reducedMotion.matches) : null;
   const fragmentCount = latestFragment ? state.skyFragments.filter((item) => item.constellation === latestFragment.constellation).length : 0;
-  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(latestFragment.earnedAt, renderNow, momentLevel, reducedMotion.matches) : null;
+  const completionAt = latestFragment ? new Date(Date.parse(latestFragment.earnedAt) + 1_250).toISOString() : null;
+  const completionFrame = latestFragment && fragmentCount === 6 ? completionMomentFrame(completionAt, renderNow, momentLevel, reducedMotion.matches) : null;
   if (fragmentFrame) drawBandSweep(fragmentFrame, baseline);
   if (latestFragment && completionFrame) drawCompletionMoment(latestFragment, completionFrame, baseline);
   if (state) {

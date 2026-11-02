@@ -290,3 +290,9 @@
 - Implementation: rewrote setup around the authorization-code flow, reduced viewer instructions to one line, moved all controls and commands under optional features, and kept finalize, verify, rebuild, migration, and demos out of the required path.
 - Decision: name four future directions without implying they exist today.
 - Implementation: added viewer-owned Twitch-login records, `!me`, cross-channel threads, and a packaged one-click install under What's next. Font and constellation-data attribution remains unchanged.
+
+## 2026-11-02 — Full-night replay priority
+
+- Decision: the four-minute `--moment night` scenario runs every feature together with threshold three and normal moments. Ignite is immediate; fragment and completion moments are serialized; no sky moment is dropped; the panel advances with the corresponding moment.
+- Implementation: the sixth-fragment sweep now finishes before the completion sequence starts 1.25 seconds later. Lamp arrivals and flares remain independent, so stacked events exercise the real overlay rather than pausing other state.
+- Verification: reviewed 520 frames at 1920×1080, sampled every 500 ms. Per instruction, the early closing hint and a brief premature Leo-complete panel state are reported for a later fix rather than changed in this batch.
