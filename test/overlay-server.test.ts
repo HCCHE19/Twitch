@@ -13,6 +13,9 @@ describe("overlay server", () => {
     const response = await fetch(`http://127.0.0.1:${port}/overlay/`);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("Lamplight Overlay");
+    const skyPreview = await fetch(`http://127.0.0.1:${port}/sky-preview/`);
+    expect(skyPreview.status).toBe(200);
+    expect(await skyPreview.text()).toContain("Twelve constellations");
     const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`);
     const [data] = await once(socket, "message") as [Buffer];
     expect(JSON.parse(data.toString())).toMatchObject({ type: "state", state: { schemaVersion: 1 }, layout: "top", threadsEnabled: false, preferences: { compact: false, hidden: false } });

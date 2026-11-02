@@ -183,3 +183,11 @@
 **Decided:** With `WIND=true`, five distinct viewers whose latest accepted flares fall within ten seconds trigger one shared flame lean lasting one second. Direction is deterministically derived from that flare set. A ten-second global cooldown prevents repeated gusts; the feature is overlay-only and reduced-motion mode suppresses it. With the flag false it is inert.
 
 **Action:** Added an isolated browser-side wind tracker, shared flame shear, stream reset, cooldown, reduced-motion handling, configuration delivery, and tests for disabled state, distinct-viewer threshold, duration, and cooldown.
+
+## 2026-11-02 — Sky preview and calm visual language
+
+**Decided:** Provide `/sky-preview/` as a production-renderer review surface: all twelve constellations at receipt size, the same twelve at their actual tiny panel size, and Leo shown untouched, half collected, and complete. Use the same dark blue-to-charcoal preview gradient as the overlay's `?bg=1` mode. Names belong beneath preview/receipt glyphs and never inside the compact overlay panel.
+
+**Decided:** The sky should feel quiet and precious rather than diagrammatic or neon: thin rounded lines, small soft stars with restrained seeded brightness variation, pale warm-white collected regions, barely visible cool dotted missing regions, and glow only after all six fragments complete a constellation.
+
+**Action:** Exported the shared glyph renderer, applied the calm styling to preview, receipt, and overlay together, added the responsive preview grid and state comparison, registered the clean route, and added a route-level test.

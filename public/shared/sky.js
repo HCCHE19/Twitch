@@ -32,17 +32,28 @@ function routePoint(points,t) {
   return points.at(-1);
 }
 
-function drawGlyph(ctx,name,collected,x,y,w,h,options={}) {
+function starWeight(name,index) {
+  let value=2166136261;
+  for(const character of `${name}:${index}`){value^=character.charCodeAt(0);value=Math.imul(value,16777619)}
+  return ((value>>>0)%100)/100;
+}
+
+export function drawSkyGlyph(ctx,name,collected,x,y,w,h,options={}) {
   const points=normalized(name), owned=new Set(collected), complete=owned.size===6, untouched=owned.size===0;
   const map=([px,py])=>[x+5+px*(w-10),y+5+py*(h-10)];
-  ctx.save(); ctx.lineCap="round"; ctx.lineWidth=options.large?1.5:1;
+  ctx.save(); ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=options.large?1.25:.75;
+  if(complete){ctx.shadowColor="rgba(144,205,204,.22)";ctx.shadowBlur=options.large?7:3}
   for(let index=0;index<6;index++){
     const a=map(routePoint(points,index/6)),b=map(routePoint(points,(index+1)/6)),has=owned.has(LETTERS[index]);
-    ctx.setLineDash(has?[]:[2,3]); ctx.strokeStyle=`rgba(230,240,242,${has?(complete?.2:.17):.045})`;
+    ctx.setLineDash(has?[]:(options.large?[2,4]:[1,2.5]));
+    ctx.strokeStyle=has?`rgba(246,232,207,${complete?.27:.21})`:`rgba(116,185,190,${untouched?.025:.055})`;
     ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
   }
-  ctx.setLineDash([]); ctx.fillStyle=`rgba(240,246,245,${untouched?.07:.14})`;
-  for(const point of points){const [px,py]=map(point);ctx.beginPath();ctx.arc(px,py,options.large?1.7:1,0,Math.PI*2);ctx.fill()}
+  ctx.setLineDash([]);
+  for(const [index,point] of points.entries()){
+    const [px,py]=map(point),weight=starWeight(name,index),radius=(options.large?1.05:.55)+(weight>.78?(options.large?.7:.35):0);
+    ctx.fillStyle=`rgba(225,239,238,${untouched?.12:.26})`;ctx.beginPath();ctx.arc(px,py,radius,0,Math.PI*2);ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -55,13 +66,13 @@ export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="
   const animating=age>=0&&age<2000, inventory=skyInventory(animating?fragments.slice(0,-1):fragments);
   const enlarged=openingActive&&recent; const panelW=enlarged?260:180,panelH=enlarged?150:80,x=width-panelW-22,y=18;
   ctx.save();ctx.fillStyle="rgba(3,8,12,.24)";ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,12);ctx.fill();
-  if(enlarged){drawGlyph(ctx,recent.constellation,inventory[recent.constellation],x+25,y+18,panelW-50,panelH-48,{large:true});ctx.fillStyle="rgba(235,241,240,.65)";ctx.font='500 13px "Space Grotesk",system-ui,sans-serif';ctx.textAlign="center";ctx.fillText(`${recent.constellation}, ${inventory[recent.constellation].length} of 6`,x+panelW/2,y+panelH-13)}
-  else for(const [i,name] of SKY_NAMES.entries()){const angle=Math.PI+(i/(SKY_NAMES.length-1))*Math.PI,gx=x+panelW/2+Math.cos(angle)*panelW*.41,gy=y+panelH*.69+Math.sin(angle)*panelH*.42;drawGlyph(ctx,name,inventory[name],gx-11,gy-8,22,16)}
-  if(recent&&animating){const finalCount=fragments.filter(item=>item.constellation===recent.constellation).length,complete=finalCount===6,t=Math.max(0,Math.min(1,(age-1200)/800)),ease=t*t*(3-2*t);const sx=width*.22,sy=layout==="top"?height*.18:height*.76,sw=width*.56,sh=Math.min(120,height*.12),tx=x+panelW*.42,ty=y+panelH*.32,tw=panelW*.16,th=panelH*.22;const lerp=(a,b)=>a+(b-a)*ease;ctx.globalAlpha=(complete?.2:.15)/.2;drawGlyph(ctx,recent.constellation,complete?LETTERS:[recent.fragment],lerp(sx,tx),lerp(sy,ty),lerp(sw,tw),lerp(sh,th),{large:true});ctx.globalAlpha=1}
+  if(enlarged){drawSkyGlyph(ctx,recent.constellation,inventory[recent.constellation],x+25,y+18,panelW-50,panelH-48,{large:true});ctx.fillStyle="rgba(235,241,240,.65)";ctx.font='500 13px "Space Grotesk",system-ui,sans-serif';ctx.textAlign="center";ctx.fillText(`${recent.constellation}, ${inventory[recent.constellation].length} of 6`,x+panelW/2,y+panelH-13)}
+  else for(const [i,name] of SKY_NAMES.entries()){const angle=Math.PI+(i/(SKY_NAMES.length-1))*Math.PI,gx=x+panelW/2+Math.cos(angle)*panelW*.41,gy=y+panelH*.69+Math.sin(angle)*panelH*.42;drawSkyGlyph(ctx,name,inventory[name],gx-11,gy-8,22,16)}
+  if(recent&&animating){const finalCount=fragments.filter(item=>item.constellation===recent.constellation).length,complete=finalCount===6,t=Math.max(0,Math.min(1,(age-1200)/800)),ease=t*t*(3-2*t);const sx=width*.22,sy=layout==="top"?height*.18:height*.76,sw=width*.56,sh=Math.min(120,height*.12),tx=x+panelW*.42,ty=y+panelH*.32,tw=panelW*.16,th=panelH*.22;const lerp=(a,b)=>a+(b-a)*ease;ctx.globalAlpha=(complete?.2:.15)/.2;drawSkyGlyph(ctx,recent.constellation,complete?LETTERS:[recent.fragment],lerp(sx,tx),lerp(sy,ty),lerp(sw,tw),lerp(sh,th),{large:true});ctx.globalAlpha=1}
   ctx.restore();
 }
 
 export function drawReceiptSky(canvas,collected) {
   if(!canvas)return;const ctx=canvas.getContext("2d"),inventory=skyInventory(collected),w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);
-  for(const [i,name] of SKY_NAMES.entries()){const col=i%4,row=Math.floor(i/4),x=col*w/4+12,y=row*h/3+8;drawGlyph(ctx,name,inventory[name],x,y,w/4-24,h/3-26,{large:true});ctx.fillStyle="rgba(235,241,240,.48)";ctx.font="12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillText(`${name} ${inventory[name].length}/6`,x+(w/4-24)/2,y+h/3-12)}
+  for(const [i,name] of SKY_NAMES.entries()){const col=i%4,row=Math.floor(i/4),x=col*w/4+12,y=row*h/3+8;drawSkyGlyph(ctx,name,inventory[name],x,y,w/4-24,h/3-26,{large:true});ctx.fillStyle="rgba(235,241,240,.48)";ctx.font="12px system-ui,sans-serif";ctx.textAlign="center";ctx.fillText(`${name} ${inventory[name].length}/6`,x+(w/4-24)/2,y+h/3-12)}
 }

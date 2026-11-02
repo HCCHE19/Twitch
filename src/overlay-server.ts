@@ -34,6 +34,8 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
       ? "overlay/index.html"
       : requestPath === "/control" || requestPath === "/control/"
         ? "control/index.html"
+        : requestPath === "/sky-preview" || requestPath === "/sky-preview/"
+          ? "sky-preview/index.html"
         : requestPath.replace(/^\/+/, "");
     const safe = normalize(relative);
     if (safe.startsWith("..")) { response.writeHead(403).end("Forbidden"); return; }
