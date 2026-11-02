@@ -147,3 +147,9 @@
 **Decided:** Each receipt row lists up to three display names whose lamps share the most attended stream IDs with that viewer. Exclude self and zero-overlap lamps; rank by shared count descending then display name for deterministic ties. Store and expose display names only in the public row.
 
 **Action:** Added ledger-derived co-attendance ranking, receipt rendering, legacy fallback, documentation, and ranking/cap tests.
+
+## 2026-11-02 — Freeze scope and wave integration
+
+**Decided:** Skip the red-thread section before the 17:00 freeze. It couples command/moderator authorization, pending and persistent graph state, caps, rebuilds, placement, receipts, waiting rendering, and eleven required tests; partial implementation would be unsafe for recording. Skip the entire constellation/firefly/milestone section because work began after its explicit 14:00 cutoff. If the threshold is reached during the ten-second opening card, defer the one-shot wave until the card clears rather than consuming it invisibly.
+
+**Action:** Left all thread and fourth-section behavior absent and documented the scope decision. Moved threshold evaluation into the render cycle after opening-card state so the wave remains visible in the recording configuration.

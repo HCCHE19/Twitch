@@ -45,6 +45,7 @@ function render(time) {
   const baseline = selectedLayout === "top" ? innerHeight * .12 : innerHeight * .88;
   const closing = closingFrame(state?.closingMoment, Date.now(), reducedMotion.matches);
   const opening = openingCardFrame(state?.openingCard, state?.currentStream, Date.now());
+  waveTracker = updateWaveTracker(waveTracker, state?.currentStream?.id, opening.active ? 0 : state?.currentStream?.litUserIds.length ?? 0, thresholdN);
   const rollCall = rollCallFrame(preferences, state?.currentStream, Date.now());
   if (closing.kind !== "clear") {
     const sill = context.createLinearGradient(0, baseline - 20, 0, baseline + 20);
@@ -144,7 +145,6 @@ function connect() {
       state = packet.state; selectedLayout = packet.layout === "top" ? "top" : "bottom";
       thresholdN = packet.thresholdN ?? 10;
       showNames = packet.showNames !== false;
-      waveTracker = updateWaveTracker(waveTracker, state.currentStream?.id, state.currentStream?.litUserIds.length ?? 0, thresholdN);
       preferences = packet.preferences ?? preferences; demo.hidden = !state.demoReplay; drawOnce();
       if (reducedMotion.matches && state.closingMoment) setTimeout(drawOnce, 10_050);
       if (reducedMotion.matches && Object.values(state.flareAtByUserId ?? {}).some((value) => Date.now() - Date.parse(value) < 600)) setTimeout(drawOnce, 610);
