@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadEnvValues, type Config } from "./config.js";
 
 const AUTHORIZE_URL = "https://id.twitch.tv/oauth2/authorize";
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
+const REVOKE_URL = "https://id.twitch.tv/oauth2/revoke";
 const REDIRECT_URI = "http://localhost:3939";
 const REQUIRED_SCOPE = "user:read:chat";
 
@@ -20,6 +21,9 @@ export interface AuthManager {
   config: () => Config | null;
   waitForConfig: () => Promise<Config>;
   startCallbackServer: () => Promise<void>;
+  disconnect: () => Promise<void>;
+  onConnected: (listener: (config: Config) => void) => () => void;
+  onDisconnected: (listener: () => void) => () => void;
   close: () => Promise<void>;
 }
 
@@ -39,6 +43,7 @@ export async function createAuthManager(options: { path?: string; fetcher?: type
   const clientId = values.TWITCH_CLIENT_ID ?? "", clientSecret = values.TWITCH_CLIENT_SECRET ?? "", channelLogin = (values.TWITCH_CHANNEL_LOGIN ?? "").toLowerCase(), envToken = (values.TWITCH_ACCESS_TOKEN ?? "").replace(/^oauth:/u, "");
   if (!clientId || !channelLogin) throw new Error("Missing configuration: clientId, channelLogin. Fill TWITCH_CLIENT_ID and TWITCH_CHANNEL_LOGIN in .env.");
   let activeConfig: Config | null = null, stored: StoredAuth | null = null, expectedState = "", stateExpiresAt = 0, callbackServer: Server | null = null, refreshTimer: NodeJS.Timeout | null = null;
+  const connectedListeners = new Set<(config: Config) => void>(), disconnectedListeners = new Set<() => void>();
   let resolveWait: ((config: Config) => void) | null = null;
   const waiting = new Promise<Config>((resolve) => { resolveWait = resolve; });
 
@@ -48,7 +53,9 @@ export async function createAuthManager(options: { path?: string; fetcher?: type
   };
   const activate = (token: string): Config => {
     if (activeConfig) activeConfig.accessToken = token; else activeConfig = { accessToken: token, clientId, channelLogin };
-    resolveWait?.(activeConfig); resolveWait = null; return activeConfig;
+    resolveWait?.(activeConfig); resolveWait = null;
+    for (const listener of connectedListeners) listener(activeConfig);
+    return activeConfig;
   };
   const scheduleRefresh = (): void => {
     if (refreshTimer) clearTimeout(refreshTimer); if (!stored?.refreshToken) return;
@@ -78,6 +85,20 @@ export async function createAuthManager(options: { path?: string; fetcher?: type
     // https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/#authorization-code-grant-flow
     const url = new URL(AUTHORIZE_URL); url.search = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: REDIRECT_URI, scope: REQUIRED_SCOPE, force_verify: "true", state: expectedState }).toString(); return url.toString();
   };
+  const disconnect = async (): Promise<void> => {
+    const token = activeConfig?.accessToken;
+    if (token) {
+      // Twitch token revocation: https://dev.twitch.tv/docs/authentication/revoke-tokens/
+      const response = await fetcher(REVOKE_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ client_id: clientId, token }) });
+      // A 400 means Twitch already considers the token invalid; local removal is still correct.
+      if (!response.ok && response.status !== 400) throw new Error(`Twitch token revocation failed (${response.status})`);
+    }
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+    try { await unlink(path); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    activeConfig = null; stored = null; expectedState = ""; stateExpiresAt = 0;
+    for (const listener of disconnectedListeners) listener();
+  };
   const startCallbackServer = async (): Promise<void> => {
     callbackServer = createServer(async (request, response) => {
       const url = new URL(request.url ?? "/", REDIRECT_URI), code = url.searchParams.get("code"), state = url.searchParams.get("state");
@@ -90,5 +111,11 @@ export async function createAuthManager(options: { path?: string; fetcher?: type
     });
     await new Promise<void>((resolve, reject) => { callbackServer!.once("error", reject); callbackServer!.listen(3939, "127.0.0.1", () => { callbackServer!.off("error", reject); resolve(); }); });
   };
-  return { clientId, channelLogin, createAuthorizationUrl, connected: () => activeConfig !== null, config: () => activeConfig, waitForConfig: () => activeConfig ? Promise.resolve(activeConfig) : waiting, startCallbackServer, close: async () => { if (refreshTimer) clearTimeout(refreshTimer); if (callbackServer) await new Promise<void>((resolve, reject) => callbackServer!.close((error) => error ? reject(error) : resolve())); } };
+  return {
+    clientId, channelLogin, createAuthorizationUrl, connected: () => activeConfig !== null, config: () => activeConfig,
+    waitForConfig: () => activeConfig ? Promise.resolve(activeConfig) : waiting, startCallbackServer, disconnect,
+    onConnected: (listener) => { connectedListeners.add(listener); return () => connectedListeners.delete(listener); },
+    onDisconnected: (listener) => { disconnectedListeners.add(listener); return () => disconnectedListeners.delete(listener); },
+    close: async () => { if (refreshTimer) clearTimeout(refreshTimer); if (callbackServer) await new Promise<void>((resolve, reject) => callbackServer!.close((error) => error ? reject(error) : resolve())); }
+  };
 }

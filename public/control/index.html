@@ -1,18 +1,11 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Lamplight controls</title>
-  <link rel="stylesheet" href="/control/control.css">
-</head>
-<body>
-  <main>
-    <p class="eyebrow">LOCAL CONTROL</p><h1>Channel controls</h1>
-    <section aria-labelledby="connection-heading"><h2 id="connection-heading">Connection</h2><p id="connection-status">Checking Twitch connection…</p><a class="reconnect" href="/auth/start">Reconnect</a><p id="status">Connecting</p></section>
-    <section aria-labelledby="receipts-heading"><h2 id="receipts-heading">Receipts</h2>
-    <p id="live-stream" class="live-row" hidden></p><p id="receipts-status" role="status">Loading receipts…</p>
-    <ol id="receipts-list"></ol></section>    <h2>Settings <small id="saved" role="status"></small></h2>
-    <p class="note">Saved locally. Threshold changes apply next stream; other settings apply live.</p>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lamplight controls</title><link rel="stylesheet" href="/control/control.css"></head>
+<body><main>
+  <p class="eyebrow">LOCAL CONTROL</p><h1>Channel controls</h1>
+  <section aria-labelledby="connection-heading"><h2 id="connection-heading">Connection</h2><p id="connection-status">Checking Twitch connection…</p><div class="connection-actions"><a class="reconnect" href="/auth/start">Reconnect</a><button id="disconnect" class="secondary" type="button">Disconnect</button></div><p id="status">Connecting</p></section>
+  <section aria-labelledby="receipts-heading"><h2 id="receipts-heading">Receipts</h2><p id="live-stream" class="live-row" hidden></p><p id="receipts-status" role="status">Loading receipts…</p><ol id="receipts-list"></ol></section>
+  <section id="settings-section" aria-labelledby="settings-heading">
+    <h2 id="settings-heading">Settings</h2><p class="note">Saved locally. Threshold changes apply next stream; other settings apply live.</p>
     <label><span><strong>Sky</strong><small>Collect and show constellation fragments</small></span><input id="sky" type="checkbox"></label>
     <label><span><strong>Threads</strong><small>Enable !tie and persistent red threads</small></span><input id="threads" type="checkbox"></label>
     <label><span><strong>Wind</strong><small>Let five quick flares lean every flame</small></span><input id="wind" type="checkbox"></label>
@@ -22,14 +15,12 @@
     <label><span><strong>Fragment threshold</strong><small>Auto or a manual number; changes apply next stream</small></span><input id="threshold" type="text" list="threshold-options" value="auto" aria-label="Fragment threshold: auto or a positive integer"><datalist id="threshold-options"><option value="auto"></datalist></label>
     <p id="threshold-current" class="note"></p>
     <label><span><strong>Layout</strong><small>Place the single lamp band at the top or bottom</small></span><select id="layout"><option value="bottom">Bottom</option><option value="top">Top</option></select></label>
-<h2>Roll call</h2>
+    <p id="settings-note" class="settings-note" role="status"></p><button id="save-settings" type="button" disabled>Save settings</button>
+  </section>
+  <section aria-labelledby="roll-call-heading"><h2 id="roll-call-heading">Roll call</h2>
     <label><span><strong>Compact</strong><small>Drop the lamp band by one density tier</small></span><input id="compact" type="checkbox"></label>
     <label><span><strong>Hide band</strong><small>Fade every lamp out without stopping Lamplight</small></span><input id="hidden" type="checkbox"></label>
     <label><span><strong>Roll call</strong><small>Highlight uncalled lamps in first-lit order</small></span><input id="roll-call" type="checkbox"></label>
-    <button id="called" type="button" disabled>Mark current lamp called</button>
-    <p id="current">No active roll call</p>
-
-  </main>
-  <script type="module" src="/control/control.js"></script>
-</body>
-</html>
+    <button id="called" type="button" disabled>Mark current lamp called</button><p id="current">No active roll call</p>
+  </section>
+</main><script type="module" src="/control/control.js"></script></body></html>

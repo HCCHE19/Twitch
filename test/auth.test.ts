@@ -40,13 +40,26 @@ describe("Twitch authorization manager", () => {
     await auth.close(); await rm(directory, { recursive: true });
   });
 
+  it("revokes the active token, removes only local auth, and notifies the runtime", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "lamplight-auth-")), path = join(directory, "auth.json");
+    await writeFile(path, JSON.stringify({ accessToken: "fictional-access", refreshToken: "fictional-refresh", expiresAt: new Date(Date.now() + 3_600_000).toISOString(), scopes: ["user:read:chat"] }));
+    const requests: Array<{ url: string; body: string }> = [];
+    const fetcher = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => { requests.push({ url: String(input), body: String(init?.body) }); return new Response(null, { status: 200 }); };
+    const auth = await createAuthManager({ path, env, fetcher: fetcher as typeof fetch }); const disconnected = vi.fn(); auth.onDisconnected(disconnected);
+    await auth.disconnect();
+    expect(requests).toEqual([{ url: "https://id.twitch.tv/oauth2/revoke", body: "client_id=client-id&token=fictional-access" }]);
+    expect(auth.connected()).toBe(false); expect(disconnected).toHaveBeenCalledOnce();
+    await expect(readFile(path, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await auth.close(); await rm(directory, { recursive: true });
+  });
+
   it("exchanges a verified callback code, saves locally, and exposes no token in the redirect", async () => {
     const directory = await mkdtemp(join(tmpdir(), "lamplight-auth-")), path = join(directory, "auth.json");
     const fetcher = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
       expect(String(init?.body)).toContain("grant_type=authorization_code");
       return new Response(JSON.stringify({ access_token: "callback-access", refresh_token: "callback-refresh", expires_in: 3600, scope: ["user:read:chat"] }), { status: 200 });
     };
-    const auth = await createAuthManager({ path, env, fetcher: fetcher as typeof fetch }); const authorize = new URL(auth.createAuthorizationUrl());
+    const auth = await createAuthManager({ path, env, fetcher: fetcher as typeof fetch }); const connected = vi.fn(); auth.onConnected(connected); const authorize = new URL(auth.createAuthorizationUrl());
     // Use an ephemeral test port so the user's running callback server is untouched.
     let callbackServer: Server;
     const originalListen = Server.prototype.listen;
@@ -58,11 +71,13 @@ describe("Twitch authorization manager", () => {
     const callback = await fetch(`http://127.0.0.1:${callbackPort}/?code=test-code&state=${authorize.searchParams.get("state")}`, { redirect: "manual" });
     expect(callback.status).toBe(302); expect(callback.headers.get("location")).toBe("http://localhost:8787/setup?connected=1"); expect(callback.headers.get("location")).not.toContain("callback-access");
     expect(auth.config()?.accessToken).toBe("callback-access"); expect(JSON.parse(await readFile(path, "utf8"))).toMatchObject({ accessToken: "callback-access", refreshToken: "callback-refresh" });
+    expect(connected).toHaveBeenCalledTimes(1);
     const reconnect = new URL(auth.createAuthorizationUrl());
     expect(reconnect.searchParams.get("force_verify")).toBe("true");
     expect(reconnect.searchParams.get("state")).not.toBe(authorize.searchParams.get("state"));
     const second = await fetch(`http://127.0.0.1:${callbackPort}/?code=test-code&state=${reconnect.searchParams.get("state")}`, { redirect: "manual" });
     expect(second.status).toBe(302);
+    expect(connected).toHaveBeenCalledTimes(2);
     await auth.close(); await rm(directory, { recursive: true });
   });
 });

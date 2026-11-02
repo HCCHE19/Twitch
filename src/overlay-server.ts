@@ -1,7 +1,8 @@
 import { receiptIndex } from "./receipt-index.js";
+import { randomBytes } from "node:crypto";
 import { resolveThreshold } from "./sky-threshold.js";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
@@ -23,11 +24,12 @@ export interface OverlayServer {
 }
 
 interface OverlayPreferences { compact: boolean; hidden: boolean; rollCall: boolean; rollCallCalled: string[]; rollCallStartedAt?: string }
-interface SetupAuth { channelLogin?: string; createAuthorizationUrl: () => string; connected: () => boolean }
+interface SetupAuth { channelLogin?: string; createAuthorizationUrl: () => string; connected: () => boolean; disconnect?: () => Promise<void> }
 
 export async function startOverlayServer(getState: () => DerivedState, port = 8787, layout: OverlayLayout = "bottom", thresholdN: number | "auto" = "auto", showNames = true, threadsEnabled = false, skyEnabled = false, windEnabled = false, moments: MomentLevel = "normal", setupAuth?: SetupAuth, promisesEnabled = true, settingsManager?: SettingsManager): Promise<OverlayServer> {
   const root = join(process.cwd(), "public");
   const sockets = new WebSocketServer({ noServer: true });
+  const controlToken = randomBytes(24).toString("hex");
   const preferences: OverlayPreferences = { compact: false, hidden: false, rollCall: false, rollCallCalled: [] };
   const runtime = () => settingsManager?.get() ?? { layout, thresholdN, showNames, threads: threadsEnabled, sky: skyEnabled, wind: windEnabled, promises: promisesEnabled, moments };
   const packet = (state: DerivedState): string => { const settings = runtime(); return JSON.stringify({ type: "state", state, layout: settings.layout, thresholdN: state.currentStream?.thresholdN ?? resolveThreshold(state, settings.thresholdN), autoThresholdN: resolveThreshold(state, "auto"), showNames: settings.showNames, threadsEnabled: settings.threads, skyEnabled: settings.sky, windEnabled: settings.wind, promisesEnabled: settings.promises, moments: settings.moments, settings, preferences }); };
@@ -42,7 +44,13 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
       catch { response.writeHead(302, { Location: "/setup?error=config", "Cache-Control": "no-store" }).end(); }
       return;
     }
-    if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false, channelName: setupAuth?.connected() ? setupAuth.channelLogin ?? "" : "", demo: getState().demoReplay })); return; }
+    if (requestPath === "/auth/disconnect" && request.method === "POST") {
+      if (!setupAuth?.disconnect || request.headers["x-lamplight-control"] !== controlToken) { response.writeHead(403).end("Forbidden"); return; }
+      try { await setupAuth.disconnect(); response.writeHead(204, { "Cache-Control": "no-store" }).end(); }
+      catch { response.writeHead(502, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }).end("Twitch could not be disconnected. Try again."); }
+      return;
+    }
+    if (requestPath === "/setup/status") { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify({ connected: setupAuth?.connected() ?? false, channelName: setupAuth?.connected() ? setupAuth.channelLogin ?? "" : "", demo: getState().demoReplay, controlToken })); return; }
     if (requestPath === "/control/receipts") {
       try { response.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }).end(JSON.stringify(await receiptIndex())); }
       catch { response.writeHead(500).end("Could not load receipts"); }
@@ -64,6 +72,11 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
     try {
       const info = await stat(file);
       if (!info.isFile()) throw new Error("not a file");
+      if (receiptRequest && extname(file) === ".html") {
+        const source = await readFile(file, "utf8");
+        const html = source.includes('class="back-to-controls"') ? source : source.replace("<body>", '<body><a class="back-to-controls" href="/control">Back to controls</a>');
+        response.writeHead(200, { "Content-Type": MIME[".html"], "Cache-Control": "no-store" }).end(html); return;
+      }
       response.writeHead(200, {
         "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
         "Cache-Control": "no-store"
@@ -83,7 +96,8 @@ export async function startOverlayServer(getState: () => DerivedState, port = 87
       try {
         const message = JSON.parse(raw.toString()) as { type?: unknown; compact?: unknown; hidden?: unknown; rollCall?: unknown; settings?: unknown };
         if (message.type === "settings" && settingsManager && message.settings && typeof message.settings === "object") {
-          await settingsManager.update(message.settings as Parameters<SettingsManager["update"]>[0]); sendState(); socket.send(JSON.stringify({ type: "settings-saved" })); return;
+          const saved = await settingsManager.update(message.settings as Parameters<SettingsManager["update"]>[0]);
+          socket.send(JSON.stringify({ type: "settings-saved", settings: saved })); sendState(); return;
         }
         if (message.type === "roll-call-called") {
           const stream = getState().currentStream;

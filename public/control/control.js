@@ -1,87 +1,27 @@
-const compact = document.querySelector("#compact");
-const hidden = document.querySelector("#hidden");
-const rollCall = document.querySelector("#roll-call");
-const called = document.querySelector("#called");
-const current = document.querySelector("#current");
-const status = document.querySelector("#status");
-const fields = { sky: document.querySelector("#sky"), threads: document.querySelector("#threads"), wind: document.querySelector("#wind"), promises: document.querySelector("#promises"), showNames: document.querySelector("#show-names"), moments: document.querySelector("#moments"), thresholdN: document.querySelector("#threshold"), layout: document.querySelector("#layout") };
-let socket;
-let latest;
-let savedTimer;
+const compact=document.querySelector("#compact"),hidden=document.querySelector("#hidden"),rollCall=document.querySelector("#roll-call");
+const called=document.querySelector("#called"),current=document.querySelector("#current"),status=document.querySelector("#status");
+const saveButton=document.querySelector("#save-settings"),settingsNote=document.querySelector("#settings-note"),disconnectButton=document.querySelector("#disconnect");
+const fields={sky:document.querySelector("#sky"),threads:document.querySelector("#threads"),wind:document.querySelector("#wind"),promises:document.querySelector("#promises"),showNames:document.querySelector("#show-names"),moments:document.querySelector("#moments"),thresholdN:document.querySelector("#threshold"),layout:document.querySelector("#layout")};
+let socket,latest,baseline=null,dirty=false,saving=false,savedTimer,controlToken="";
 
-function send() {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "preferences", compact: compact.checked, hidden: hidden.checked, rollCall: rollCall.checked }));
-}
-function sendSettings() {
-  const thresholdN = fields.thresholdN.value.trim().toLowerCase() === "auto" ? "auto" : Number(fields.thresholdN.value);
-  if ((thresholdN !== "auto" && (!Number.isInteger(thresholdN) || thresholdN < 1)) || socket?.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: "settings", settings: { sky: fields.sky.checked, threads: fields.threads.checked, wind: fields.wind.checked, promises: fields.promises.checked, showNames: fields.showNames.checked, moments: fields.moments.value, thresholdN, layout: fields.layout.value } }));
-}
-function updateCurrent() {
-  const preferences = latest?.preferences; const stream = latest?.state?.currentStream;
-  if (!preferences?.rollCall || !stream) { current.textContent = "No active roll call"; called.disabled = true; return; }
-  const remaining = stream.litUserIds.filter((userId) => !(preferences.rollCallCalled ?? []).includes(userId));
-  if (!remaining.length) { current.textContent = "Roll call complete"; called.disabled = true; return; }
-  const index = Math.floor(Math.max(0, Date.now() - Date.parse(preferences.rollCallStartedAt)) / 4000) % remaining.length;
-  const lamp = latest.state.lamps[remaining[index]];
-  current.textContent = lamp ? `Current: ${lamp.displayName}` : "Current lamp"; called.disabled = false;
-}
-function connect() {
-  socket = new WebSocket(`ws://${location.host}/ws`);
-  socket.addEventListener("open", () => { status.textContent = "Connected"; });
-  socket.addEventListener("message", (event) => {
-    const packet = JSON.parse(event.data);
-    if (packet.type === "settings-saved") {
-      const saved=document.querySelector("#saved");saved.textContent="Saved";
-      clearTimeout(savedTimer);savedTimer=setTimeout(()=>{saved.textContent=""},1000);
-    }
-    if (packet.type === "state") {
-      document.querySelector("#live-stream").hidden = !packet.state?.currentStream;
-      document.querySelector("#live-stream").textContent = packet.state?.currentStream ? `Live now · Stream ID: ${packet.state.currentStream.id}` : "Currently offline";
-      if (latest?.state?.currentStream?.id && !packet.state?.currentStream) refreshReceipts();
-      latest = packet; compact.checked = Boolean(packet.preferences?.compact); hidden.checked = Boolean(packet.preferences?.hidden); rollCall.checked = Boolean(packet.preferences?.rollCall);
-      const settings = packet.settings; if (settings) { for (const key of ["sky", "threads", "wind", "promises", "showNames"]) fields[key].checked = Boolean(settings[key]); fields.moments.value = settings.moments; fields.thresholdN.value = String(settings.thresholdN); fields.layout.value = settings.layout; }
-      document.querySelector("#threshold-current").textContent = `Auto: ${packet.autoThresholdN ?? 10} lamps. ${packet.state?.currentStream ? `This stream: ${packet.thresholdN} (fixed).` : `Next stream: ${packet.thresholdN}.`}`;
-      updateCurrent();
-    }
-  });
-  socket.addEventListener("close", () => { status.textContent = "Reconnecting"; setTimeout(connect, 1000); });
-}
-compact.addEventListener("change", send); hidden.addEventListener("change", send); rollCall.addEventListener("change", send);
-Object.values(fields).forEach((field) => field.addEventListener("change", sendSettings));
-called.addEventListener("click", () => { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "roll-call-called" })); });
-setInterval(updateCurrent, 250); connect();
+function fieldSettings(){const thresholdN=fields.thresholdN.value.trim().toLowerCase()==="auto"?"auto":Number(fields.thresholdN.value);return{sky:fields.sky.checked,threads:fields.threads.checked,wind:fields.wind.checked,promises:fields.promises.checked,showNames:fields.showNames.checked,moments:fields.moments.value,thresholdN,layout:fields.layout.value}}
+function valid(settings){return settings.thresholdN==="auto"||(Number.isInteger(settings.thresholdN)&&settings.thresholdN>0)}
+function loadFields(settings){for(const key of["sky","threads","wind","promises","showNames"])fields[key].checked=Boolean(settings[key]);fields.moments.value=settings.moments;fields.thresholdN.value=String(settings.thresholdN);fields.layout.value=settings.layout}
+function settingsChanged(){return Boolean(baseline)&&JSON.stringify(fieldSettings())!==JSON.stringify(baseline)}
+function showDirty(){dirty=settingsChanged();saveButton.disabled=!dirty||saving;saveButton.classList.toggle("highlighted",dirty);settingsNote.textContent=dirty?"Unsaved changes":""}
+function saveSettings(){const settings=fieldSettings();if(!dirty||saving||!valid(settings)||socket?.readyState!==WebSocket.OPEN){if(!valid(settings))settingsNote.textContent="Enter auto or a positive whole number.";return}saving=true;saveButton.disabled=true;saveButton.textContent="Saving…";socket.send(JSON.stringify({type:"settings",settings}))}
+function sendPreferences(){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"preferences",compact:compact.checked,hidden:hidden.checked,rollCall:rollCall.checked}))}
+function updateCurrent(){const preferences=latest?.preferences,stream=latest?.state?.currentStream;if(!preferences?.rollCall||!stream){current.textContent="No active roll call";called.disabled=true;return}const remaining=stream.litUserIds.filter(id=>!(preferences.rollCallCalled??[]).includes(id));if(!remaining.length){current.textContent="Roll call complete";called.disabled=true;return}const index=Math.floor(Math.max(0,Date.now()-Date.parse(preferences.rollCallStartedAt))/4000)%remaining.length;const lamp=latest.state.lamps[remaining[index]];current.textContent=lamp?`Current: ${lamp.displayName}`:"Current lamp";called.disabled=false}
 
-let loadingReceipts = false;
-async function refreshReceipts() {
-  if (loadingReceipts) return;
-  loadingReceipts = true;
-  try {
-    const response = await fetch("/control/receipts", { cache: "no-store" });
-    if (!response.ok) throw new Error("Receipt list unavailable");
-    const receipts = await response.json(), list = document.querySelector("#receipts-list");
-    list.replaceChildren();
-    receipts.forEach((receipt, index) => {
-      const row = document.createElement("li"); if(index === 0) row.className = "latest-receipt";
-      const date = new Date(receipt.startedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-      const title = document.createElement("strong"); title.textContent = `${index === 0 ? "Latest · " : ""}${date}`;
-      const count = document.createElement("span"); count.textContent = `${receipt.lampCount} lamps`;
-      const link = document.createElement(receipt.url ? "a" : "span");
-      if(receipt.url) { link.href = receipt.url; link.textContent = "Open receipt"; } else link.textContent = "Receipt page not available yet";
-      row.append(title, count, link); list.append(row);
-    });
-    document.querySelector("#receipts-status").textContent = receipts.length ? "Private receipts on this Mac. Dates use your local time." : "No completed stream receipts yet.";
-  } catch { document.querySelector("#receipts-status").textContent = "Could not load receipts. Retrying shortly."; }
-  finally { loadingReceipts = false; }
-}
-refreshReceipts(); setInterval(refreshReceipts, 5000);
+function connect(){socket=new WebSocket(`ws://${location.host}/ws`);socket.addEventListener("open",()=>{status.textContent="Connected"});socket.addEventListener("message",event=>{const packet=JSON.parse(event.data);if(packet.type==="settings-saved"){baseline=packet.settings;loadFields(baseline);dirty=false;saving=false;saveButton.disabled=true;saveButton.classList.remove("highlighted");saveButton.textContent="Save settings";settingsNote.textContent="Saved";clearTimeout(savedTimer);savedTimer=setTimeout(()=>{if(!dirty)settingsNote.textContent=""},1000);return}if(packet.type!=="state")return;const stream=packet.state?.currentStream;document.querySelector("#live-stream").hidden=!stream;document.querySelector("#live-stream").textContent=stream?`Live now · Stream ID: ${stream.id}`:"";if(latest?.state?.currentStream?.id&&!stream)refreshReceipts();latest=packet;compact.checked=Boolean(packet.preferences?.compact);hidden.checked=Boolean(packet.preferences?.hidden);rollCall.checked=Boolean(packet.preferences?.rollCall);if(packet.settings&&!dirty&&!saving){baseline=packet.settings;loadFields(baseline)}document.querySelector("#threshold-current").textContent=`Auto: ${packet.autoThresholdN??10} lamps. ${stream?`This stream: ${packet.thresholdN} (fixed).`:`Next stream: ${packet.thresholdN}.`}`;updateCurrent()});socket.addEventListener("close",()=>{status.textContent="Reconnecting";setTimeout(connect,1000)})}
 
-async function updateConnection() {
-  try {
-    const response=await fetch("/setup/status",{cache:"no-store"});if(!response.ok)throw new Error();
-    const body=await response.json();
-    if(!body.connected&&!body.demo){location.replace("/setup");return}
-    document.querySelector("#connection-status").textContent=body.demo?"Demo replay":`Connected · ${body.channelName}`;
-  } catch {document.querySelector("#connection-status").textContent="Connection status unavailable. Retrying…"}
-}
-updateConnection();setInterval(updateConnection,5000);
+for(const field of Object.values(fields))field.addEventListener("change",showDirty);
+saveButton.addEventListener("click",saveSettings);compact.addEventListener("change",sendPreferences);hidden.addEventListener("change",sendPreferences);rollCall.addEventListener("change",sendPreferences);called.addEventListener("click",()=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"roll-call-called"}))});
+addEventListener("beforeunload",event=>{if(!dirty)return;event.preventDefault();event.returnValue=""});
+
+let loadingReceipts=false;async function refreshReceipts(){if(loadingReceipts)return;loadingReceipts=true;try{const response=await fetch("/control/receipts",{cache:"no-store"});if(!response.ok)throw new Error();const receipts=await response.json(),list=document.querySelector("#receipts-list");list.replaceChildren();receipts.forEach((receipt,index)=>{const row=document.createElement("li");if(index===0)row.className="latest-receipt";const date=new Date(receipt.startedAt).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"}),title=document.createElement("strong");title.textContent=`${index===0?"Latest · ":""}${date}`;const count=document.createElement("span");count.textContent=`${receipt.lampCount} lamps`;const link=document.createElement(receipt.url?"a":"span");if(receipt.url){link.href=receipt.url;link.textContent="Open receipt"}else link.textContent="Receipt page not available yet";row.append(title,count,link);list.append(row)});document.querySelector("#receipts-status").textContent=receipts.length?"Private receipts on this Mac. Dates use your local time.":"No completed stream receipts yet."}catch{document.querySelector("#receipts-status").textContent="Could not load receipts. Retrying shortly."}finally{loadingReceipts=false}}
+
+async function updateConnection(){try{const response=await fetch("/setup/status",{cache:"no-store"});if(!response.ok)throw new Error();const body=await response.json();controlToken=body.controlToken??"";if(!body.connected&&!body.demo){location.replace("/setup");return}document.querySelector("#connection-status").textContent=body.demo?"Demo replay":`Connected · ${body.channelName}`;disconnectButton.hidden=Boolean(body.demo)}catch{document.querySelector("#connection-status").textContent="Connection status unavailable. Retrying…"}}
+disconnectButton.addEventListener("click",async()=>{if(!confirm("Disconnect Twitch? Lamplight will stop listening to EventSub. Lamps and the ledger will stay on this Mac."))return;disconnectButton.disabled=true;disconnectButton.textContent="Disconnecting…";try{const response=await fetch("/auth/disconnect",{method:"POST",headers:{"X-Lamplight-Control":controlToken}});if(!response.ok)throw new Error(await response.text());dirty=false;location.replace("/setup")}catch(error){disconnectButton.disabled=false;disconnectButton.textContent="Disconnect";document.querySelector("#connection-status").textContent=error instanceof Error?error.message:"Twitch could not be disconnected."}});
+
+refreshReceipts();setInterval(refreshReceipts,5000);updateConnection();setInterval(updateConnection,5000);setInterval(updateCurrent,250);connect();

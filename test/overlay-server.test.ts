@@ -4,20 +4,25 @@ import { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import WebSocket from "ws";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { startOverlayServer } from "../src/overlay-server.js";
 import { emptyState } from "../src/presence.js";
 import { createSettingsManager } from "../src/settings.js";
 
 describe("overlay server", () => {
   it("serves connected controls in the requested order with the channel name", async () => {
-    const overlay=await startOverlayServer(()=>emptyState(),0,"bottom",3,true,false,false,false,"normal",{connected:()=>true,channelLogin:"fictional_channel",createAuthorizationUrl:()=>"https://example.test/authorize"});
+    const disconnect = vi.fn(async () => undefined);
+    const overlay=await startOverlayServer(()=>emptyState(),0,"bottom",3,true,false,false,false,"normal",{connected:()=>true,channelLogin:"fictional_channel",createAuthorizationUrl:()=>"https://example.test/authorize",disconnect});
     try {
       const base=`http://127.0.0.1:${(overlay.server.address() as AddressInfo).port}`;
-      expect(await (await fetch(`${base}/setup/status`)).json()).toMatchObject({connected:true,channelName:"fictional_channel"});
+      const connection = await (await fetch(`${base}/setup/status`)).json() as { connected: boolean; channelName: string; controlToken: string };
+      expect(connection).toMatchObject({connected:true,channelName:"fictional_channel"});expect(connection.controlToken).toHaveLength(48);
       const response=await fetch(`${base}/control`,{redirect:"manual"});expect(response.status).toBe(200);
-      const html=await response.text(), headings=["Connection</h2>","Receipts</h2>","Settings <small","Roll call</h2>"].map(text=>html.indexOf(text));
+      const html=await response.text(), headings=["Connection</h2>","Receipts</h2>","Settings</h2>","Roll call</h2>"].map(text=>html.indexOf(text));
       expect(headings.every(index=>index>=0)).toBe(true);expect(headings).toEqual([...headings].sort((a,b)=>a-b));
+      expect((await fetch(`${base}/auth/disconnect`,{method:"POST"})).status).toBe(403);
+      expect((await fetch(`${base}/auth/disconnect`,{method:"POST",headers:{"X-Lamplight-Control":connection.controlToken}})).status).toBe(204);
+      expect(disconnect).toHaveBeenCalledOnce();
     } finally { await overlay.close(); }
   });
   it("serves the overlay and sends an initial state snapshot", async () => {
@@ -44,10 +49,10 @@ describe("overlay server", () => {
     const [updated] = await once(socket, "message") as [Buffer];
     expect(JSON.parse(updated.toString())).toMatchObject({ preferences: { compact: true, hidden: true } });
     const saved = new Promise(resolve => socket.on("message", raw => { const packet=JSON.parse(raw.toString()); if(packet.type === "settings-saved") resolve(packet); }));
+    const settingsUpdated = new Promise(resolve => socket.on("message", raw => { const packet=JSON.parse(raw.toString()); if(packet.type === "state" && packet.settings?.sky === true) resolve(packet); }));
     socket.send(JSON.stringify({ type: "settings", settings: { sky: true, thresholdN: 3, layout: "bottom" } }));
-    const [settingsUpdated] = await once(socket, "message") as [Buffer];
-    expect(JSON.parse(settingsUpdated.toString())).toMatchObject({ settings: { sky: true, thresholdN: 3, layout: "bottom" }, skyEnabled: true, thresholdN: 3, layout: "bottom" });
-    expect(await saved).toEqual({ type: "settings-saved" });
+    expect(await settingsUpdated).toMatchObject({ settings: { sky: true, thresholdN: 3, layout: "bottom" }, skyEnabled: true, thresholdN: 3, layout: "bottom" });
+    expect(await saved).toMatchObject({ type: "settings-saved", settings: { sky: true, thresholdN: 3, layout: "bottom" } });
     socket.close();
     await once(socket, "close");
     await overlay.close();

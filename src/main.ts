@@ -1,5 +1,5 @@
 import { thresholdEnvelope } from "./sky-threshold.js";
-import { loadIgnoredUsers, loadMomentLevel, loadOverlayLayout, loadPort, loadPromisesEnabled, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled, loadWindEnabled } from "./config.js";
+import { loadIgnoredUsers, loadMomentLevel, loadOverlayLayout, loadPort, loadPromisesEnabled, loadShowNames, loadSkyEnabled, loadThresholdN, loadThreadsEnabled, loadWindEnabled, type Config } from "./config.js";
 import { EventSubClient } from "./eventsub.js";
 import { appendEnvelope, readLedger, rebuildState, writeState } from "./ledger.js";
 import { startOverlayServer } from "./overlay-server.js";
@@ -32,8 +32,10 @@ async function main(): Promise<void> {
   const overlay = await startOverlayServer(() => state, port, layout, thresholdN, showNames, threadsEnabled, skyEnabled, windEnabled, moments, auth, promisesEnabled, settings);
   await auth.startCallbackServer();
   console.log(`[overlay] http://localhost:${port}/overlay/ (${settings.get().layout})`);
-  let config = auth.config();
-  if (!config) { console.log(`open http://localhost:${port}/setup to connect Twitch`); config = await auth.waitForConfig(); }
+  let config: Config;
+  const initialConfig = auth.config();
+  if (initialConfig) config = initialConfig;
+  else { console.log(`open http://localhost:${port}/setup to connect Twitch`); config = await auth.waitForConfig(); }
   const identity = await validateToken(config);
   console.log(`[auth] validated broadcaster ${identity.login}; scope user:read:chat; expires in ${Math.floor(identity.expiresIn / 3600)}h`);
   const live = await getLiveStream(config);
@@ -83,6 +85,7 @@ async function main(): Promise<void> {
   const sampler = startViewerSampler(
     () => state.currentStream !== null,
     async () => {
+      if (!auth.connected()) return;
       const expectedStreamId = state.currentStream?.id;
       if (!expectedStreamId) return;
       try {
@@ -98,9 +101,9 @@ async function main(): Promise<void> {
   );
   if (state.currentStream) void sampler.trigger();
 
-  const client = new EventSubClient({
-    config,
-    broadcasterUserId: identity.userId,
+  const makeClient = (clientConfig: Config, broadcasterUserId: string): EventSubClient => new EventSubClient({
+    config: clientConfig,
+    broadcasterUserId,
     onReady: () => console.log("[ready] send a message in your Twitch channel; Ctrl+C stops Lamplight"),
     onEnvelope: async (envelope) => {
       await serialize(async () => {
@@ -163,7 +166,31 @@ async function main(): Promise<void> {
     onChat: (displayName, text) => console.log(`[chat] ${displayName}: ${text}`),
     onStream: (type, event) => console.log(`[stream] ${type}: ${JSON.stringify(event)}`)
   });
+  let client = makeClient(config, identity.userId), activeToken = config.accessToken;
   client.start();
+  auth.onDisconnected(() => { activeToken = ""; client.stop(); console.log("[auth] disconnected; EventSub stopped"); });
+  auth.onConnected((nextConfig) => {
+    if (nextConfig.accessToken === activeToken) return;
+    activeToken = nextConfig.accessToken; config = nextConfig;
+    void (async () => {
+      const nextIdentity = await validateToken(nextConfig);
+      const currentLive = await getLiveStream(nextConfig);
+      if (currentLive && !state.currentStream) {
+        await serialize(async () => {
+          const recoveryEnvelope = {
+            metadata: { message_id: `recovery:${currentLive.id}`, message_type: "internal", message_timestamp: new Date().toISOString(), subscription_type: "lamplight.stream.recovered" },
+            payload: { event: { id: currentLive.id, started_at: currentLive.startedAt, source: "helix.get-streams" } }
+          };
+          const recoveryEntry = await appendEnvelope("data/events.jsonl", recoveryEnvelope, state.lastHash);
+          reduceEnvelope(state, recoveryEnvelope, { broadcasterLogin: nextConfig.channelLogin, ignoredUsers });
+          state.lastHash = recoveryEntry.hash; entries.push(recoveryEntry);
+          await lockThreshold(recoveryEnvelope.metadata.message_timestamp); await writeState("data/state.json", state); overlay.broadcast(state);
+        });
+      }
+      client.stop(); client = makeClient(nextConfig, nextIdentity.userId); client.start();
+      console.log(`[auth] reconnected broadcaster ${nextIdentity.login}; EventSub starting`);
+    })().catch((error) => console.error(`[auth] reconnect failed: ${error instanceof Error ? error.message : String(error)}`));
+  });
   const stop = async (): Promise<void> => { sampler.stop(); client.stop(); await auth.close(); await overlay.close(); process.exitCode = 0; };
   process.once("SIGINT", () => void stop());
   process.once("SIGTERM", () => void stop());

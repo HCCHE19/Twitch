@@ -335,3 +335,10 @@
 - Decision: setup confirms Connected for one second then opens control; disconnected control visits return to setup. Control order is Connection, Receipts, Settings, Roll call. Keep demo controls available without a Twitch login.
 - Implementation: connection status exposes only the configured channel name and connection boolean. Reconnect starts authorization directly. Receipt rows have date, lamps and an Open receipt button, with a live stream row and automatic refresh at stream end. Settings show Saved for one second only after server persistence acknowledgement.
 - Verification: build and four targeted tests pass for redirects, connected channel metadata, section order, save acknowledgement and receipt listing. Tests use fictional state and do not read .env or saved tokens. README now directs users through setup once and then control.
+
+## 2026-11-03 — Explicit settings save and Twitch disconnect
+
+- Decision: control settings are staged until **Save settings** is clicked. Highlight the button and show **Unsaved changes** while dirty; show **Saved** for one second after the server confirms persistence. Preserve staged fields across unrelated live-state updates and ask for confirmation before leaving.
+- Decision: Disconnect requires confirmation, stops EventSub, revokes the active token through Twitch's documented `POST https://id.twitch.tv/oauth2/revoke`, deletes only `data/auth.json`, and returns to setup. Lamps, receipts, derived state, and `data/events.jsonl` are untouched. A same-origin control token protects the localhost POST. Reauthorization starts a fresh EventSub client in the same process.
+- Decision: generated receipts and previously generated receipt HTML served by Lamplight show **Back to controls** at the top.
+- Verification: authorization and localhost tests use fictional tokens and temporary files. A 1920×1080 Chrome check confirmed staging, unload protection, explicit save/application, saved feedback, confirmation, disconnect, and setup redirect without page errors. No `.env`, real auth file, or real Twitch token was read during implementation.

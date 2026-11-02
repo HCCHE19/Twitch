@@ -38,6 +38,7 @@ describe("presence receipts", () => {
   it("keeps user ids out of public HTML and draws a lamp for each name", () => {
     const { receipt } = fixture();
     const html = receiptHtml(receipt);
+    expect(html).toContain('<a class="back-to-controls" href="/control">Back to controls</a>');
     expect(html).toContain("Friend");
     expect(html).toContain("drawLampDesign");
     expect(html).toContain("Local streamer record");
