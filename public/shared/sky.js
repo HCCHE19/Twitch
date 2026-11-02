@@ -6,6 +6,7 @@ import { drawSkyProgress } from "./sky-progress.js";
 // Lamplight normalizes those real positions and generates its own six-region line style.
 import { completionMomentFrame, fragmentMomentFrame } from "./moments.js";
 export const SKY_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpius","Sagittarius","Capricornus","Aquarius","Pisces"];
+export const SKY_PANEL_SIZE = {width:520,height:200};
 const LETTERS = ["A","B","C","D","E","F"];
 const RAW = {
   Aries:[[42.496,27.2605],[31.7934,23.4624],[28.66,20.808],[28.3826,19.2939]],
@@ -62,14 +63,14 @@ function magnitudeTiers(name) {
 }
 
 export function drawSkyGlyph(ctx,name,collected,x,y,w,h,options={}) {
-  const points=cardPoints(name,x,y,w,h),owned=new Set(collected),complete=owned.size===6,untouched=owned.size===0,large=options.large!==false,reveal=options.revealProgress??1;
+  const points=cardPoints(name,x,y,w,h),owned=new Set(collected),complete=owned.size===6,untouched=owned.size===0,large=options.large!==false,panel=options.panel===true,reveal=options.revealProgress??1;
   if(options.background!==false)drawBackgroundStars(ctx,name,x,y,w,h);
-  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=large?1.5:.9;
+  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=panel?2.5:large?1.5:.9;
   if(complete){const halo=ctx.createRadialGradient(x+w/2,y+h/2,0,x+w/2,y+h/2,Math.max(w,h)*.48);halo.addColorStop(0,"rgba(218,190,139,.055)");halo.addColorStop(.55,"rgba(132,190,193,.035)");halo.addColorStop(1,"rgba(80,130,140,0)");ctx.fillStyle=halo;ctx.fillRect(x,y,w,h)}
   if(!untouched)for(let index=0;index<6;index++){
     if(index/6>reveal)continue;
-    const a=routePoint(points,index/6),b=routePoint(points,(index+1)/6),has=owned.has(LETTERS[index]);ctx.setLineDash(has?[]:(large?[2,5]:[1,3]));
-    ctx.strokeStyle=has?`rgba(246,232,207,${complete?.78:.68})`:`rgba(147,195,198,.25)`;ctx.shadowColor=has?"rgba(239,218,177,.24)":"transparent";ctx.shadowBlur=has?(large?5:2):0;
+    const a=routePoint(points,index/6),b=routePoint(points,(index+1)/6),has=owned.has(LETTERS[index]);ctx.setLineDash(has?[]:(panel?[2.5,6]:large?[2,5]:[1,3]));
+    ctx.strokeStyle=has?`rgba(255,242,218,${panel?1:complete?.78:.68})`:`rgba(188,215,215,${panel?.30:.25})`;ctx.shadowColor=has?(panel?"rgba(255,226,173,.62)":"rgba(239,218,177,.24)"):"transparent";ctx.shadowBlur=has?(panel?9:large?5:2):0;
     ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();
   }
   ctx.setLineDash([]);ctx.shadowBlur=0;const tiers=magnitudeTiers(name);
@@ -77,12 +78,12 @@ export function drawSkyGlyph(ctx,name,collected,x,y,w,h,options={}) {
     if(index/Math.max(1,points.length-1)>reveal)continue;
     const tier=tiers[index],alpha=untouched?.28:complete?.92:.78;
     if(tier==="bright"){
-      const glow=ctx.createRadialGradient(px,py,0,px,py,large?7:3);glow.addColorStop(0,`rgba(247,235,211,${alpha*.48})`);glow.addColorStop(.25,`rgba(220,236,234,${alpha*.22})`);glow.addColorStop(1,"rgba(190,220,222,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.arc(px,py,large?7:3,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle=`rgba(255,246,226,${alpha})`;ctx.beginPath();ctx.arc(px,py,large?2.05:1.05,0,Math.PI*2);ctx.fill();
+      const glowRadius=panel?10:large?7:3,starRadius=panel?3:large?2.05:1.05,glow=ctx.createRadialGradient(px,py,0,px,py,glowRadius);glow.addColorStop(0,`rgba(255,243,218,${panel?.72:alpha*.48})`);glow.addColorStop(.25,`rgba(235,241,231,${panel?.34:alpha*.22})`);glow.addColorStop(1,"rgba(190,220,222,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.arc(px,py,glowRadius,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(255,248,230,${panel?1:alpha})`;ctx.beginPath();ctx.arc(px,py,starRadius,0,Math.PI*2);ctx.fill();
       if(large){ctx.strokeStyle=`rgba(248,239,218,${alpha*.28})`;ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(px-4,py);ctx.lineTo(px+4,py);ctx.moveTo(px,py-4);ctx.lineTo(px,py+4);ctx.stroke()}
     } else if(tier==="mid"){
-      ctx.shadowColor="rgba(207,231,231,.24)";ctx.shadowBlur=large?2.5:1;ctx.fillStyle=`rgba(226,239,236,${alpha*.82})`;ctx.beginPath();ctx.arc(px,py,large?1.25:.7,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-    } else {ctx.fillStyle=`rgba(216,232,232,${alpha*.68})`;ctx.fillRect(Math.round(px),Math.round(py),1,1)}
+      ctx.shadowColor=panel?"rgba(255,235,200,.42)":"rgba(207,231,231,.24)";ctx.shadowBlur=panel?4:large?2.5:1;ctx.fillStyle=`rgba(239,244,232,${panel?.94:alpha*.82})`;ctx.beginPath();ctx.arc(px,py,panel?2:large?1.25:.7,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    } else if(panel){ctx.fillStyle="rgba(226,237,229,.78)";ctx.beginPath();ctx.arc(px,py,2,0,Math.PI*2);ctx.fill()}else{ctx.fillStyle=`rgba(216,232,232,${alpha*.68})`;ctx.fillRect(Math.round(px),Math.round(py),1,1)}
   }
   ctx.restore();
 }
@@ -110,15 +111,15 @@ export function updateSkyDisplayLock(lock,state) {
 
 export function drawSkyPanel(ctx,fragmentsOrModel,x,y,w,h,enlarged=false) {
   const model=Array.isArray(fragmentsOrModel)?skyPanelModel(fragmentsOrModel):fragmentsOrModel,inventory=model.inventory,current=model.current;
-  ctx.save();const backing=ctx.createRadialGradient(x+w*.55,y+h*.48,w*.08,x+w*.55,y+h*.48,w*.64);backing.addColorStop(0,"rgba(2,8,13,.82)");backing.addColorStop(.62,"rgba(2,8,13,.64)");backing.addColorStop(1,"rgba(2,8,13,0)");ctx.fillStyle=backing;ctx.fillRect(x-w*.12,y-h*.18,w*1.24,h*1.36);
+  ctx.save();const backingX=x+w*.50,backingY=y+h*.48,backingRadius=w*.70,backing=ctx.createRadialGradient(backingX,backingY,w*.06,backingX,backingY,backingRadius);backing.addColorStop(0,"rgba(1,7,12,.94)");backing.addColorStop(.62,"rgba(1,7,12,.58)");backing.addColorStop(.88,"rgba(1,7,12,.16)");backing.addColorStop(1,"rgba(1,7,12,0)");ctx.fillStyle=backing;ctx.fillRect(backingX-backingRadius,backingY-backingRadius,backingRadius*2,backingRadius*2);ctx.fillStyle="rgba(2,9,15,.72)";ctx.beginPath();ctx.roundRect(x,y,w,h,18);ctx.fill();ctx.strokeStyle="rgba(225,235,226,.10)";ctx.lineWidth=1;ctx.stroke();
   const arcLeft=current?x+w*.60:x+w*.12,arcWidth=current?w*.32:w*.76,centerX=arcLeft+arcWidth/2,centerY=y+h*.70,radiusX=arcWidth/2,radiusY=h*.34;
   for(const [index,name] of SKY_NAMES.entries()){
     const count=inventory[name].length,angle=Math.PI+(index/(SKY_NAMES.length-1))*Math.PI,px=centerX+Math.cos(angle)*radiusX,py=centerY+Math.sin(angle)*radiusY;
-    ctx.fillStyle=count===6?"rgba(248,235,210,.78)":count>0?"rgba(211,232,230,.44)":"rgba(176,207,210,.13)";
-    ctx.shadowColor=count===6?"rgba(239,214,164,.35)":"transparent";ctx.shadowBlur=count===6?5:0;ctx.beginPath();ctx.arc(px,py,count===6?2.1:count>0?1.65:1.2,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
-    if(count===6){ctx.strokeStyle="rgba(242,225,191,.38)";ctx.lineWidth=.75;ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);ctx.stroke()}
+    ctx.fillStyle=count===6?"rgba(255,241,215,.92)":count>0?"rgba(224,238,232,.62)":"rgba(190,215,214,.22)";
+    ctx.shadowColor=count===6?"rgba(255,224,172,.48)":"transparent";ctx.shadowBlur=count===6?7:0;ctx.beginPath();ctx.arc(px,py,count===6?3.5:count>0?3:2,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    if(count===6){ctx.strokeStyle="rgba(248,228,192,.58)";ctx.lineWidth=1;ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.stroke()}
   }
-  if(current){const glyphX=x+8,glyphY=y+6,glyphW=Math.max(200,w*.52),glyphH=h-(enlarged?42:32);drawSkyGlyph(ctx,current,inventory[current],glyphX,glyphY,glyphW,glyphH,{large:enlarged,background:false});ctx.fillStyle="rgba(232,239,237,.72)";ctx.font=`500 ${enlarged?16:14}px "Space Grotesk",system-ui,sans-serif`;ctx.textAlign="center";ctx.fillText(model.caption,glyphX+glyphW/2,y+h-(enlarged?12:8))}
+  if(current){const glyphX=x+12,glyphY=y+8,glyphW=w*.57,glyphH=h-40;drawSkyGlyph(ctx,current,inventory[current],glyphX,glyphY,glyphW,glyphH,{large:true,panel:true,background:false});ctx.fillStyle="rgba(246,241,226,.92)";ctx.font='600 16px "Space Grotesk",system-ui,sans-serif';ctx.textAlign="center";ctx.fillText(model.caption,glyphX+glyphW/2,y+h-10)}
   ctx.restore();
 }
 
@@ -130,15 +131,15 @@ export function skyPanelTransitionAt(fragments=[],now=Date.now(),moments="normal
 
 export function drawSkyOverlay(ctx,state,width,height,openingActive,now,layout="bottom",moments="normal",reducedMotion=false,displayLock=null,completionDelay=1250,openingPulse=0,progress=null,recentMomentAt=undefined) {
   const fragments=state?.skyFragments??[],{recent,isComplete,fragmentFrame,completionFrame,transition}=skyPanelTransitionAt(fragments,now,moments,reducedMotion,displayLock,completionDelay,recentMomentAt);
-  const enlarged=Boolean(openingActive&&recent),panelW=enlarged?500:400,panelH=enlarged?240:160,x=width-panelW-28,y=22;
+  const enlarged=Boolean(openingActive&&recent),panelW=enlarged?620:SKY_PANEL_SIZE.width,panelH=enlarged?220:SKY_PANEL_SIZE.height-50,x=width-panelW-28,y=22;
   drawSkyPanel(ctx,transition.rendered,x,y,panelW,panelH,enlarged);
   drawSkyProgress(ctx,progress,x,y+panelH,panelW);
   if(openingPulse>0){ctx.save();ctx.strokeStyle=`rgba(239,222,188,${openingPulse*.22})`;ctx.lineWidth=1.5;ctx.shadowColor="rgba(239,222,188,.25)";ctx.shadowBlur=12*openingPulse;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.stroke();ctx.restore()}
   if(completionFrame?.active&&completionFrame.crossfade>0&&!completionFrame.settled){ctx.save();ctx.globalAlpha=completionFrame.crossfade;drawSkyPanel(ctx,transition.after,x,y,panelW,panelH,enlarged);ctx.restore()}
   if(completionFrame?.panelPulse>0){ctx.save();const pulse=completionFrame.panelPulse,glow=ctx.createRadialGradient(x+panelW*.28,y+panelH*.45,0,x+panelW*.28,y+panelH*.45,panelW*.42);glow.addColorStop(0,`rgba(248,231,196,${pulse*.16})`);glow.addColorStop(.55,`rgba(151,203,203,${pulse*.08})`);glow.addColorStop(1,"rgba(120,180,185,0)");ctx.fillStyle=glow;ctx.beginPath();ctx.roundRect(x,y,panelW,panelH,14);ctx.fill();ctx.restore()}
   const panelOnly=isComplete&&(moments==="quiet"||reducedMotion);if(recent&&fragmentFrame?.active&&(!isComplete||panelOnly)){
-    const baseW=panelW*.48,baseH=panelH-(enlarged?38:28),scale=fragmentFrame.panelScale,cx=x+10+baseW/2,cy=y+8+baseH/2,collected=transition.after.inventory[recent.constellation];
-    ctx.save();ctx.globalAlpha=Math.min(1,.76+fragmentFrame.pulse*.24);ctx.shadowColor="rgba(245,224,184,.32)";ctx.shadowBlur=fragmentFrame.pulse*9;drawSkyGlyph(ctx,recent.constellation,collected,cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:enlarged,background:false});ctx.restore();
+    const baseW=panelW*.57,baseH=panelH-40,scale=fragmentFrame.panelScale,cx=x+12+baseW/2,cy=y+8+baseH/2,collected=transition.after.inventory[recent.constellation];
+    ctx.save();ctx.globalAlpha=Math.min(1,.82+fragmentFrame.pulse*.18);ctx.shadowColor="rgba(245,224,184,.42)";ctx.shadowBlur=fragmentFrame.pulse*11;drawSkyGlyph(ctx,recent.constellation,collected,cx-baseW*scale/2,cy-baseH*scale/2,baseW*scale,baseH*scale,{large:true,panel:true,background:false});ctx.restore();
   }
 }
 

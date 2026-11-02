@@ -76,7 +76,7 @@ function drawCompletionMoment(fragment, frame, baseline) {
   if (!fragment || !frame.active || frame.maxHeight <= 0) return;
   const fullHeight = innerHeight * frame.maxHeight, fullWidth = Math.min(innerWidth * .64, fullHeight * 2.4);
   const startX = (innerWidth - fullWidth) / 2, startY = selectedLayout === "top" ? 0 : baseline - fullHeight;
-  const panelX = innerWidth - 420, panelY = 28, targetW = 210, targetH = 112, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
+  const panelX = innerWidth - 536, panelY = 30, targetW = 296, targetH = 152, ease = frame.shrink * frame.shrink * (3 - 2 * frame.shrink);
   const lerp = (from, to) => from + (to - from) * ease;
   context.save(); context.globalAlpha = frame.travelAlpha ?? 1;
   drawSkyGlyph(context, fragment.constellation, ["A", "B", "C", "D", "E", "F"], lerp(startX, panelX), lerp(startY, panelY), lerp(fullWidth, targetW), lerp(fullHeight, targetH), { large: true, background: false, revealProgress: frame.reveal });

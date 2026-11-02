@@ -1,11 +1,12 @@
 import { describe,expect,it } from "vitest";
 // @ts-expect-error Browser module intentionally has no declaration file.
-import { drawSkyOverlay,skyMomentTransition,skyPanelModel,skyPanelTransitionAt,updateSkyDisplayLock } from "../public/shared/sky.js";
+import { drawSkyOverlay,SKY_PANEL_SIZE,skyMomentTransition,skyPanelModel,skyPanelTransitionAt,updateSkyDisplayLock } from "../public/shared/sky.js";
 import { momentDemo } from "../src/demo-events.js";
 
 const fragment=(letter:string,index:number)=>({streamId:`s${index}`,constellation:"Leo",fragment:letter,earnedAt:`2026-11-02T00:00:0${index}Z`,litUserIds:[]});
 
 describe("sky panel state fidelity",()=>{
+  it("uses the locked 1080p production panel size",()=>{expect(SKY_PANEL_SIZE).toEqual({width:520,height:200})});
   it("renders the exact server count after every fragment moment settles",()=>{
     const letters=["A","B","C","D","E","F"];
     for(let count=1;count<=6;count++){

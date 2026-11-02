@@ -23,11 +23,11 @@ export function skyProgressFrame(previous, state, landedIds, threshold, now, com
 
 export function drawSkyProgress(ctx, frame, x, y, width) {
   if (!frame?.visible) return;
-  ctx.save();ctx.fillStyle="rgba(3,10,16,.48)";ctx.beginPath();ctx.roundRect(x,y-2,width,34,[0,0,14,14]);ctx.fill();
-  ctx.font='500 9px "Space Grotesk",system-ui,sans-serif';ctx.textAlign="left";ctx.fillStyle="rgba(220,232,226,.30)";
-  ctx.fillText(`next piece: ${frame.count} of ${frame.threshold} lamps`,x+12,y+11);
-  ctx.fillStyle="rgba(220,232,226,.08)";ctx.fillRect(x+12,y+20,width-24,2);
-  ctx.fillStyle=`rgba(231,227,208,${.23+frame.flash*.17})`;ctx.fillRect(x+12,y+20,(width-24)*frame.fill,2);
-  if(frame.bonus>0){ctx.textAlign="right";ctx.fillStyle=`rgba(239,218,169,${frame.bonus*.42})`;ctx.fillText("+2",x+width-12,y+11-(1-frame.bonus)*4)}
+  ctx.save();ctx.fillStyle="rgba(2,9,15,.72)";ctx.beginPath();ctx.roundRect(x,y-2,width,50,[0,0,16,16]);ctx.fill();
+  ctx.font='500 16px "Space Grotesk",system-ui,sans-serif';ctx.textAlign="left";ctx.fillStyle="rgba(235,240,226,.72)";
+  ctx.fillText(`next piece: ${frame.count} of ${frame.threshold} lamps`,x+16,y+19);
+  ctx.fillStyle="rgba(226,237,229,.18)";ctx.fillRect(x+16,y+31,width-32,3);
+  ctx.fillStyle=`rgba(247,232,202,${.52+frame.flash*.28})`;ctx.fillRect(x+16,y+31,(width-32)*frame.fill,3);
+  if(frame.bonus>0){ctx.textAlign="right";ctx.fillStyle=`rgba(249,222,168,${frame.bonus*.72})`;ctx.fillText("+2",x+width-16,y+19-(1-frame.bonus)*4)}
   ctx.restore();
 }
