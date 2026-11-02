@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createFlareEnvelope, emptyState, historicalOpacity, isPresenceMessage, lampScale, reduceEnvelope } from "../src/presence.js";
+import { createFlareEnvelope, emptyState, historicalOpacity, isPresenceMessage, isSingleUnicodeEmojiMessage, lampScale, reduceEnvelope } from "../src/presence.js";
 import type { EventSubEnvelope } from "../src/types.js";
 
 function envelope(id: string, type: string, event: Record<string, unknown>): EventSubEnvelope {
@@ -23,6 +23,15 @@ describe("presence rules", () => {
     expect(isPresenceMessage({ message: { text: "Kappa", fragments: [{ type: "emote", text: "Kappa" }] } })).toBe(true);
     expect(isPresenceMessage({ message: { text: "Kappa hi", fragments: [{ type: "emote", text: "Kappa" }, { type: "text", text: " hi" }] } })).toBe(false);
     expect(isPresenceMessage({ message: { text: "hello", fragments: [{ type: "text", text: "hello" }] } })).toBe(false);
+  });
+
+  it("accepts exactly one Unicode emoji but rejects text or multiple emoji", () => {
+    for (const text of ["✨", " 👍🏽 ", "👩‍💻", "🇦🇺", "❤️"]) expect(isSingleUnicodeEmojiMessage({ message: { text } }), text).toBe(true);
+    for (const text of ["hello ✨", "✨ hello", "✨✨", "not emoji", ""]) expect(isSingleUnicodeEmojiMessage({ message: { text } }), text).toBe(false);
+    const state = emptyState(), options = { broadcasterLogin: "host" };
+    reduceEnvelope(state, envelope("1", "stream.online", { id: "emoji-stream" }), options);
+    reduceEnvelope(state, chat("2", "emoji_viewer", "👩‍💻"), options); reduceEnvelope(state, chat("3", "emoji_viewer", "✨"), options);
+    expect(state.currentStream?.litUserIds).toEqual(["user-emoji_viewer"]); expect(state.lamps["user-emoji_viewer"]?.lifetimeLights).toBe(1);
   });
 
   it("lights once per stream and ignores broadcaster and bots", () => {

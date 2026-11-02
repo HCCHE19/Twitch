@@ -245,3 +245,9 @@
 **Decided:** The local overlay HTTP server must start before Twitch authentication so `/setup` remains reachable without a token. With neither stored nor env token, print only `open http://localhost:8787/setup to connect Twitch` and wait for the callback; after successful exchange, continue startup without a restart.
 
 **Action:** Added the setup page and protected start/status routes, a localhost callback server, atomic token persistence and refresh scheduling, mutable live credentials for API calls, setup-first startup ordering, and tests for env fallback, CSRF state, code exchange, browser secrecy, local persistence, expiry refresh, and setup routes. Verified the implementation against Twitch's official authorization-code and refresh documentation.
+
+## 2026-11-02 — Single Unicode emoji presence
+
+**Decided:** Treat one Unicode emoji grapheme and nothing else as the same one-time-per-stream lamp trigger as one Twitch emote. Support joined emoji, skin tones, flags, variation selectors, and keycaps. Reject emoji plus text and multiple emoji. Do not broaden repeat-emote flares; this part changes presence only.
+
+**Action:** Added a grapheme-aware Unicode property matcher to the existing presence predicate and tests for simple, modified, joined, flag, and heart emoji; text combinations, multiple emoji, and duplicate lights remain rejected.

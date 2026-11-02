@@ -26,7 +26,18 @@ export function isPresenceMessage(event: Record<string, unknown>): boolean {
   const message = event.message as { text?: unknown; fragments?: unknown } | undefined;
   const text = typeof message?.text === "string" ? message.text.trim().toLowerCase() : "";
   if (text === "!lamp" || text === "!lurk") return true;
-  return isSingleEmoteMessage(event);
+  return isSingleEmoteMessage(event) || isSingleUnicodeEmojiMessage(event);
+}
+
+const EMOJI_GRAPHEME = /^(?:\p{Regional_Indicator}{2}|[#*0-9]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0E|\uFE0F)?(?:\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0E|\uFE0F)?(?:\p{Emoji_Modifier})?)*)$/u;
+
+export function isSingleUnicodeEmojiMessage(event: Record<string, unknown>): boolean {
+  const message = event.message as { text?: unknown } | undefined;
+  if (typeof message?.text !== "string") return false;
+  const text = message.text.trim();
+  if (!text) return false;
+  const graphemes = [...new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text)];
+  return graphemes.length === 1 && EMOJI_GRAPHEME.test(graphemes[0]!.segment);
 }
 
 export function isSingleEmoteMessage(event: Record<string, unknown>): boolean {
